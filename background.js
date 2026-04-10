@@ -10,7 +10,7 @@
 
 // --------------- CONFIGURATION ---------------
 
-const MAPS_API_KEY = "AIzaSyDpseKILl2ulr3_yOibOvNnq98okYN-uP8";
+const MAPS_API_KEY = "API_Key_Here";
 
 const CALENDAR_API_BASE = "https://www.googleapis.com/calendar/v3";
 const DIRECTIONS_API_BASE = "https://maps.googleapis.com/maps/api/directions/json";
