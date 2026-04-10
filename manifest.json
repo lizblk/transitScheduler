@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "NYC Transit Scheduler",
+  "version": "0.0.0",
+  "description": "Automatically calculates subway departure times and adds reminders to your Google Calendar events.",
+
+  "permissions": [
+    "identity",
+    "storage",
+    "alarms"
+  ],
+
+  "oauth2": {
+    "client_id": "951153151138-figbsu2kkcsk37m01nh3c1fl58lvks4r.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/calendar.events"
+    ]
+  },
+
+  "background": {
+    "service_worker": "background.js"
+  },
+
+  "action": {
+    "default_popup": "injection/popup/popup.html",
+    "default_icon": {
+      "16": "injection/icons/icon16.png",
+      "48": "injection/icons/icon48.png",
+      "128": "injection/icons/icon128.png"
+    }
+  },
+
+  "icons": {
+    "16": "injection/icons/icon16.png",
+    "48": "injection/icons/icon48.png",
+    "128": "injection/icons/icon128.png"
+  }
+}

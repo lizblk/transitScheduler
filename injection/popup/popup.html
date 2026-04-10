@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NYC Transit Scheduler</title>
+  <link rel="stylesheet" href="popup.css" />
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="header-icon">🚇</div>
+      <h1>NYC Transit Scheduler</h1>
+      <p class="subtitle">Smart departure reminders for your calendar</p>
+    </header>
+
+    <!-- Home Address Section -->
+    <section class="section">
+      <label for="home-address" class="label">Home Address</label>
+      <div class="input-row">
+        <input
+          type="text"
+          id="home-address"
+          placeholder="e.g. 350 5th Ave, New York, NY 10118"
+          spellcheck="false"
+        />
+        <button id="save-address" class="btn btn-secondary">Save</button>
+      </div>
+      <p id="address-status" class="status-text"></p>
+    </section>
+
+    <hr class="divider" />
+
+    <!-- Run Pipeline -->
+    <section class="section">
+      <button id="run-btn" class="btn btn-primary btn-full">
+        Check Calendar &amp; Calculate Routes
+      </button>
+      <p id="last-run" class="status-text"></p>
+    </section>
+
+    <!-- Results -->
+    <section id="results-section" class="section results-section hidden">
+      <h2>Results</h2>
+      <div id="results-list" class="results-list"></div>
+    </section>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
