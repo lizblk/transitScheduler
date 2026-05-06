@@ -7,45 +7,83 @@
   <link rel="stylesheet" href="popup.css" />
 </head>
 <body>
-  <div class="container">
-    <!-- Header -->
+  <main class="container">
     <header class="header">
-      <div class="header-icon">🚇</div>
-      <h1>NYC Transit Scheduler</h1>
-      <p class="subtitle">Smart departure reminders for your calendar</p>
+      <div>
+        <h1>NYC Transit Scheduler</h1>
+        <p class="subtitle">Preview and add commute blocks to Google Calendar</p>
+      </div>
+      <label class="switch" title="Enable extension">
+        <input type="checkbox" id="enabled" />
+        <span></span>
+      </label>
     </header>
 
-    <!-- Home Address Section -->
     <section class="section">
       <label for="home-address" class="label">Home Address</label>
-      <div class="input-row">
-        <input
-          type="text"
-          id="home-address"
-          placeholder="e.g. 350 5th Ave, New York, NY 10118"
-          spellcheck="false"
-        />
-        <button id="save-address" class="btn btn-secondary">Save</button>
-      </div>
-      <p id="address-status" class="status-text"></p>
+      <input
+        type="text"
+        id="home-address"
+        placeholder="350 5th Ave, New York, NY 10118"
+        spellcheck="false"
+      />
     </section>
 
-    <hr class="divider" />
-
-    <!-- Run Pipeline -->
     <section class="section">
-      <button id="run-btn" class="btn btn-primary btn-full">
-        Check Calendar &amp; Calculate Routes
-      </button>
-      <p id="last-run" class="status-text"></p>
+      <label class="field">
+        <span class="label">Default Mode</span>
+        <select id="travel-mode">
+          <option value="TRANSIT">Transit</option>
+          <option value="WALK">Walking</option>
+          <option value="DRIVE">Driving</option>
+          <option value="BICYCLE">Biking</option>
+        </select>
+      </label>
     </section>
 
-    <!-- Results -->
-    <section id="results-section" class="section results-section hidden">
-      <h2>Results</h2>
+    <section class="section">
+      <label class="field">
+        <span class="label">Planning Window</span>
+        <select id="planning-window">
+          <option value="TODAY">Today</option>
+          <option value="NEXT_24_HOURS">Next 24 hours</option>
+          <option value="THIS_WEEK">This week</option>
+        </select>
+      </label>
+    </section>
+
+    <label class="check-row">
+      <input type="checkbox" id="include-home-commutes" />
+      <span>Add home-to-first and last-to-home blocks</span>
+    </label>
+
+    <label class="check-row">
+      <input type="checkbox" id="use-separate-calendar" />
+      <span>Use separate Transit Scheduler calendar</span>
+    </label>
+
+    <label class="check-row">
+      <input type="checkbox" id="auto-refresh" />
+      <span>Automatically refresh commute blocks daily</span>
+    </label>
+
+    <div class="actions">
+      <button id="save-settings" class="btn btn-secondary">Save Settings</button>
+      <button id="preview-btn" class="btn btn-primary">Preview</button>
+      <button id="add-btn" class="btn btn-success" disabled>Add to Calendar</button>
+      <button id="remove-btn" class="btn btn-danger">Remove Commute Blocks</button>
+    </div>
+
+    <p id="status" class="status-text"></p>
+
+    <section id="results-section" class="results-section hidden">
+      <div class="results-header">
+        <h2>Commute Plan</h2>
+        <span id="results-meta"></span>
+      </div>
       <div id="results-list" class="results-list"></div>
     </section>
-  </div>
+  </main>
 
   <script src="popup.js"></script>
 </body>

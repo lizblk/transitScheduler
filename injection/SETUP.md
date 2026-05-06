@@ -23,13 +23,13 @@
 3. Go to **APIs & Services → Library**
 4. Search for and enable:
    - **Google Calendar API**
-   - **Directions API** (under Google Maps)
+   - **Routes API** (under Google Maps)
 
 ### Configure OAuth consent screen
 5. Go to **APIs & Services → OAuth consent screen**
 6. Choose **External** user type
 7. Fill in: App name, User support email, Developer contact email
-8. On the Scopes step, add: `https://www.googleapis.com/auth/calendar.events`
+8. On the Scopes step, add: `https://www.googleapis.com/auth/calendar`
 9. On the Test users step, add your Gmail address
 10. Save and go back to the dashboard
 
@@ -42,29 +42,31 @@
 
 ### Create Maps API Key
 16. Back in Credentials, click **Create Credentials → API Key**
-17. Click **Restrict Key** → under API restrictions, select **Directions API** only
+17. Click **Restrict Key** → under API restrictions, select **Routes API** only
 18. Save the key
 
 ## Step 3: Configure the Extension
 
-1. Open `manifest.json` and replace `YOUR_CLIENT_ID_HERE.apps.googleusercontent.com` with your actual Client ID
+1. Open `manifest.json` and replace the OAuth client ID with your actual Client ID.
 
-2. Open `background.js` and replace `YOUR_MAPS_API_KEY_HERE` with your actual Maps API key
+2. Keep your Maps API key out of source control. For local demos, configure it once in extension storage rather than showing it in the user-facing popup.
 
 ## Step 4: Reload and Test
 
 1. Go back to `chrome://extensions/`
 2. Click the **reload** button (circular arrow) on the NYC Transit Scheduler card
 3. Click the extension icon in the toolbar
-4. Enter your home address and click **Save**
-5. Click **Check Calendar & Calculate Routes**
-6. The extension will ask for Google account permission on first run
+4. Enter your home address and click **Save Settings**
+5. Click **Preview** to calculate commute blocks.
+6. Click **Add to Calendar** to create real commute events.
+7. The extension will ask for Google account permission on first run.
 
 ## Troubleshooting
 
 | Problem | Fix |
 |---------|-----|
 | "Authorization failed" | Check that Client ID in manifest.json matches Google Cloud credentials |
+| Consent prompt does not update | Remove/reload the extension or revoke the app from your Google account, then authorize again |
 | "No home address set" | Click the extension icon and enter/save your address |
 | "No transit route found" | The event location may not be a real address — try with a specific street address in a test event |
 | Extension ID changed | If you removed and re-loaded the extension, the ID changes. Update it in Google Cloud credentials. |
@@ -74,14 +76,24 @@
 ```
 nyc-transit-scheduler/
 ├── manifest.json          # Extension config, OAuth client ID, permissions
-├── background.js          # Service worker: auth, calendar, directions, injection
-├── popup/
-│   ├── popup.html         # Extension popup UI
-│   ├── popup.css          # Popup styles
-│   └── popup.js           # Popup logic: address saving, results display
-├── icons/
-│   ├── icon16.png         # Toolbar icon
-│   ├── icon48.png         # Extensions page icon
-│   └── icon128.png        # Chrome Web Store icon
-└── SETUP.md               # This file
+├── background.js          # Service worker: message handling and workflow orchestration
+├── src/
+│   ├── calendarApi.js     # OAuth, Calendar API calls, event helpers
+│   ├── commuteEvents.js   # Creates/deletes extension commute events
+│   ├── commutePlanner.js  # Builds route candidates between calendar events
+│   ├── constants.js       # API endpoints and defaults
+│   ├── routeApi.js        # Google Routes API calls
+│   └── settings.js        # chrome.storage settings helpers
+├── injection/
+│   ├── SETUP.md
+│   └── popup/
+│       ├── popup.html     # Extension popup UI
+│       ├── popup.css      # Popup styles
+│       └── popup.js       # Popup logic
+├── injection/icons/
+│   ├── icon16.png
+│   ├── icon48.png
+│   └── icon128.png
+└── docs/
+    └── PROJECT_PLAN.md    # Architecture and MVP roadmap
 ```

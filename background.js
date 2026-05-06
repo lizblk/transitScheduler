@@ -1,313 +1,417 @@
-// ============================================================
-// NYC Transit Scheduler — Background Service Worker
-// ============================================================
-// This service worker handles:
-//   1. OAuth token management via chrome.identity
-//   2. Fetching upcoming Google Calendar events
-//   3. Calculating transit routes via Google Maps Directions API
-//   4. Injecting departure times back into calendar events
-// ============================================================
+import {
+  DEFAULT_LOOKAHEAD_HOURS,
+  DEFAULT_PLANNING_WINDOW,
+} from "./src/constants.js";
+import { fetchTimedEvents, getAuthToken, getCommuteCalendarId } from "./src/calendarApi.js";
+import { removeCommuteEvents, replaceCommuteEvents } from "./src/commuteEvents.js";
+import { buildCommutePlan } from "./src/commutePlanner.js";
+import { calculateRoute } from "./src/routeApi.js";
+import { getSettings, saveSettings } from "./src/settings.js";
 
-// --------------- CONFIGURATION ---------------
+function getWindow(settings) {
+  const timeMin = new Date();
+  const planningWindow = settings.planningWindow || DEFAULT_PLANNING_WINDOW;
+  let timeMax;
 
-const MAPS_API_KEY = "API_Key_Here";
-
-const CALENDAR_API_BASE = "https://www.googleapis.com/calendar/v3";
-const DIRECTIONS_API_BASE = "https://maps.googleapis.com/maps/api/directions/json";
-
-// How far ahead to look for events (in hours)
-const LOOKAHEAD_HOURS = 24;
-
-// Prefix used to identify departure notes we've already injected
-const DEPARTURE_TAG = "🚇 Leave by";
-
-// --------------- AUTH ---------------
-
-/**
- * Get an OAuth token using chrome.identity.
- * Returns a valid access token string or throws on failure.
- */
-async function getAuthToken(interactive = true) {
-  return new Promise((resolve, reject) => {
-    chrome.identity.getAuthToken({ interactive }, (token) => {
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
-      } else {
-        resolve(token);
-      }
-    });
-  });
-}
-
-/**
- * Remove a cached token (e.g. if it's expired) so the next call fetches a fresh one.
- */
-async function removeCachedToken(token) {
-  return new Promise((resolve) => {
-    chrome.identity.removeCachedAuthToken({ token }, resolve);
-  });
-}
-
-// --------------- GOOGLE CALENDAR ---------------
-
-/**
- * Fetch upcoming calendar events within the lookahead window.
- * Returns an array of event objects from the Calendar API.
- */
-async function fetchUpcomingEvents(token) {
-  const now = new Date().toISOString();
-  const cutoff = new Date(Date.now() + LOOKAHEAD_HOURS * 60 * 60 * 1000).toISOString();
-
-  const params = new URLSearchParams({
-    timeMin: now,
-    timeMax: cutoff,
-    singleEvents: true,
-    orderBy: "startTime",
-    maxResults: "20",
-  });
-
-  const response = await fetch(
-    `${CALENDAR_API_BASE}/calendars/primary/events?${params}`,
-    {
-      headers: { Authorization: `Bearer ${token}` },
-    }
-  );
-
-  if (response.status === 401) {
-    // Token expired — clear it and retry once
-    await removeCachedToken(token);
-    const freshToken = await getAuthToken(false);
-    return fetchUpcomingEvents(freshToken);
+  if (planningWindow === "TODAY") {
+    timeMax = new Date(timeMin);
+    timeMax.setHours(23, 59, 59, 999);
+  } else if (planningWindow === "THIS_WEEK") {
+    timeMax = new Date(timeMin.getTime() + 7 * 24 * 60 * 60 * 1000);
+  } else {
+    const hours = settings.lookaheadHours || DEFAULT_LOOKAHEAD_HOURS;
+    timeMax = new Date(timeMin.getTime() + hours * 60 * 60 * 1000);
   }
 
-  if (!response.ok) {
-    throw new Error(`Calendar API error: ${response.status} ${response.statusText}`);
-  }
-
-  const data = await response.json();
-  return data.items || [];
+  return { timeMin, timeMax };
 }
 
-/**
- * Filter events to only those with a non-empty location and a future start time.
- */
-function filterEventsWithLocations(events) {
-  return events.filter((event) => {
-    const location = (event.location || "").trim();
-    if (!location) return false;
+function getCommuteCleanupWindow(settings) {
+  const { timeMax } = getWindow(settings);
+  const timeMin = new Date();
+  timeMin.setHours(0, 0, 0, 0);
 
-    // Skip events that already have a departure annotation
-    if (event.description && event.description.includes(DEPARTURE_TAG)) {
-      return false;
-    }
-
-    // Must have a dateTime (skip all-day events)
-    return !!event.start?.dateTime;
-  });
+  return { timeMin, timeMax };
 }
 
-// --------------- GOOGLE MAPS DIRECTIONS ---------------
-
-/**
- * Calculate transit travel time from origin to destination, arriving by arrivalTime.
- *
- * Returns { durationSeconds, durationText, departureTime } or null if no route found.
- */
-async function calculateTransitRoute(origin, destination, arrivalTimeMs) {
-  const params = new URLSearchParams({
-    origin,
-    destination,
-    mode: "transit",
-    transit_mode: "subway",
-    arrival_time: Math.floor(arrivalTimeMs / 1000).toString(),
-    key: MAPS_API_KEY,
-  });
-
-  const response = await fetch(`${DIRECTIONS_API_BASE}?${params}`);
-
-  if (!response.ok) {
-    console.warn(`Directions API error: ${response.status}`);
-    return null;
-  }
-
-  const data = await response.json();
-
-  if (data.status !== "OK" || !data.routes?.length) {
-    console.warn(`No transit route found: ${data.status}`);
-    return null;
-  }
-
-  const leg = data.routes[0].legs[0];
-  const durationSeconds = leg.duration.value;
-  const durationText = leg.duration.text;
-
-  // Calculate when to leave: event start minus travel duration, minus a 5-min buffer
-  const bufferMs = 5 * 60 * 1000;
-  const departureTimeMs = arrivalTimeMs - durationSeconds * 1000 - bufferMs;
-
-  return {
-    durationSeconds,
-    durationText,
-    departureTime: new Date(departureTimeMs),
-  };
-}
-
-// --------------- CALENDAR INJECTION ---------------
-
-/**
- * Update an event's description to include a departure time note.
- */
-async function injectDepartureTime(token, event, routeInfo) {
-  const departureStr = routeInfo.departureTime.toLocaleTimeString("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
-
-  const note = `${DEPARTURE_TAG} ${departureStr} (${routeInfo.durationText} commute + 5 min buffer)`;
-
-  const existingDescription = event.description || "";
-  const updatedDescription = `${note}\n\n${existingDescription}`.trim();
-
-  const response = await fetch(
-    `${CALENDAR_API_BASE}/calendars/primary/events/${event.id}`,
-    {
-      method: "PATCH",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ description: updatedDescription }),
-    }
-  );
-
-  if (!response.ok) {
-    console.error(`Failed to update event "${event.summary}": ${response.status}`);
-    return false;
-  }
-
-  console.log(`✅ Injected departure time for "${event.summary}": ${note}`);
-  return true;
-}
-
-// --------------- MAIN PIPELINE ---------------
-
-/**
- * Run the full pipeline:
- *   1. Authenticate
- *   2. Fetch upcoming events
- *   3. Filter to events with locations
- *   4. Calculate transit routes
- *   5. Inject departure times
- *
- * Returns a summary object for the popup to display.
- */
-async function runPipeline() {
+async function previewCommutes() {
+  const settings = await getSettings();
   const results = {
-    processed: [],
+    planned: [],
     skipped: [],
+    errors: [],
+    eventsConsidered: 0,
+    defaultTravelMode: settings.travelMode,
+    timestamp: new Date().toISOString(),
+  };
+
+  if (!settings.enabled) {
+    results.skipped.push({ label: "Extension disabled", reason: "Turn it on in settings." });
+    return results;
+  }
+
+  try {
+    const token = await getAuthToken(true);
+    const { timeMin, timeMax } = getWindow(settings);
+    const events = await fetchTimedEvents(token, timeMin, timeMax);
+    const plan = await buildCommutePlan(events, settings);
+
+    results.eventsConsidered = plan.eventsConsidered;
+    results.planned = serializeCommutes(plan.planned);
+    results.skipped = plan.skipped;
+
+    await chrome.storage.local.set({
+      lastPreviewResults: results,
+      lastPreviewWindow: {
+        timeMin: timeMin.toISOString(),
+        timeMax: timeMax.toISOString(),
+      },
+    });
+
+    return results;
+  } catch (error) {
+    results.errors.push(error.message);
+    return results;
+  }
+}
+
+async function addCommutesToCalendar() {
+  const settings = await getSettings();
+  const results = {
+    planned: [],
+    skipped: [],
+    errors: [],
+    eventsConsidered: 0,
+    created: 0,
+    deleted: 0,
+    defaultTravelMode: settings.travelMode,
+    timestamp: new Date().toISOString(),
+  };
+
+  if (!settings.enabled) {
+    results.skipped.push({ label: "Extension disabled", reason: "Turn it on in settings." });
+    return results;
+  }
+
+  try {
+    const token = await getAuthToken(true);
+    const { timeMin, timeMax } = getWindow(settings);
+    const events = await fetchTimedEvents(token, timeMin, timeMax);
+    const plan = await buildCommutePlan(events, settings);
+
+    if (plan.planned.length === 0) {
+      return {
+        ...results,
+        eventsConsidered: plan.eventsConsidered,
+        skipped: plan.skipped,
+      };
+    }
+
+    const cleanupWindow = getCommuteCleanupWindow(settings);
+    const commuteCalendarId = await getCommuteCalendarId(token, settings);
+    const writeResults = await replaceCommuteEvents(
+      token,
+      commuteCalendarId,
+      plan.planned,
+      cleanupWindow.timeMin,
+      cleanupWindow.timeMax
+    );
+
+    const finalResults = {
+      ...results,
+      eventsConsidered: plan.eventsConsidered,
+      planned: serializeCommutes(plan.planned),
+      skipped: plan.skipped,
+      created: writeResults.created.length,
+      deleted: writeResults.deleted,
+      timestamp: new Date().toISOString(),
+    };
+
+    await chrome.storage.local.set({ lastPreviewResults: finalResults });
+    return finalResults;
+  } catch (error) {
+    return {
+      ...results,
+      created: 0,
+      deleted: 0,
+      errors: [...results.errors, error.message],
+    };
+  }
+}
+
+async function addCurrentCommutesToCalendar(plannedCommutes = []) {
+  const settings = await getSettings();
+  const results = {
+    planned: plannedCommutes,
+    skipped: [],
+    errors: [],
+    eventsConsidered: plannedCommutes.length,
+    created: 0,
+    deleted: 0,
+    timestamp: new Date().toISOString(),
+  };
+
+  try {
+    const token = await getAuthToken(true);
+    const cleanupWindow = getCommuteCleanupWindow(settings);
+    const hydratedCommutes = plannedCommutes.map(hydrateCommute);
+    const commuteCalendarId = await getCommuteCalendarId(token, settings);
+    const writeResults = await replaceCommuteEvents(
+      token,
+      commuteCalendarId,
+      hydratedCommutes,
+      cleanupWindow.timeMin,
+      cleanupWindow.timeMax
+    );
+
+    results.created = writeResults.created.length;
+    results.deleted = writeResults.deleted;
+    await Promise.all([
+      chrome.storage.local.set({
+        lastPreviewResults: results,
+        commutesManaged: true,
+        lastAutoRefreshAt: null,
+      }),
+      saveTripModeOverrides(plannedCommutes),
+    ]);
+    return results;
+  } catch (error) {
+    return {
+      ...results,
+      errors: [error.message],
+    };
+  }
+}
+
+async function recalculateCommuteMode(commute, travelMode) {
+  const settings = await getSettings();
+
+  try {
+    const route = await calculateRoute({
+      origin: commute.origin,
+      destination: commute.destination,
+      arrivalTime: commute.arrivalTarget ? new Date(commute.arrivalTarget) : null,
+      departureTime: commute.departureTarget
+        ? new Date(commute.departureTarget)
+        : commute.earliestDeparture
+          ? new Date(commute.earliestDeparture)
+          : null,
+      travelMode,
+      mapsApiKey: settings.mapsApiKey,
+    });
+
+    if (!route) {
+      return { error: "No route found" };
+    }
+
+    const start = commute.departureTarget
+      ? new Date(commute.departureTarget)
+      : new Date(new Date(commute.arrivalTarget).getTime() - route.durationSeconds * 1000);
+    const end = commute.departureTarget
+      ? new Date(start.getTime() + route.durationSeconds * 1000)
+      : new Date(commute.arrivalTarget);
+
+    if (commute.earliestDeparture && start < new Date(commute.earliestDeparture)) {
+      return { error: "Commute overlaps the previous event" };
+    }
+
+    return {
+      commute: {
+        ...commute,
+        travelMode,
+        travelModeLabel: getTravelModeLabel(travelMode),
+        route,
+        start: start.toISOString(),
+        end: end.toISOString(),
+        durationText: route.durationText,
+        distanceText: route.distanceText,
+        compactSummary: route.compactSummary,
+        summary: route.summary,
+        mapsUrl: route.mapsUrl,
+      },
+    };
+  } catch (error) {
+    return { error: error.message };
+  }
+}
+
+async function removeCommutesFromCalendar() {
+  const settings = await getSettings();
+  const results = {
+    deleted: 0,
     errors: [],
     timestamp: new Date().toISOString(),
   };
 
   try {
-    // Step 1: Get auth token
     const token = await getAuthToken(true);
+    const { timeMin, timeMax } = getCommuteCleanupWindow(settings);
+    const commuteCalendarId = await getCommuteCalendarId(token, settings);
+    const removeResults = await removeCommuteEvents(token, commuteCalendarId, timeMin, timeMax);
 
-    // Step 2: Get home address from storage
-    const { homeAddress } = await chrome.storage.sync.get("homeAddress");
-    if (!homeAddress) {
-      results.errors.push("No home address set. Please set one in the extension popup.");
-      return results;
-    }
-
-    // Step 3: Fetch events
-    const allEvents = await fetchUpcomingEvents(token);
-    const events = filterEventsWithLocations(allEvents);
-
-    if (events.length === 0) {
-      results.skipped.push("No upcoming events with locations found.");
-      return results;
-    }
-
-    // Step 4 & 5: Calculate routes and inject departure times
-    for (const event of events) {
-      try {
-        const eventStartMs = new Date(event.start.dateTime).getTime();
-        const routeInfo = await calculateTransitRoute(
-          homeAddress,
-          event.location,
-          eventStartMs
-        );
-
-        if (!routeInfo) {
-          results.skipped.push({
-            event: event.summary,
-            reason: "No transit route found",
-          });
-          continue;
-        }
-
-        // Don't inject if departure time is in the past
-        if (routeInfo.departureTime.getTime() < Date.now()) {
-          results.skipped.push({
-            event: event.summary,
-            reason: "Departure time already passed",
-          });
-          continue;
-        }
-
-        const success = await injectDepartureTime(token, event, routeInfo);
-        if (success) {
-          results.processed.push({
-            event: event.summary,
-            departureTime: routeInfo.departureTime.toISOString(),
-            travelTime: routeInfo.durationText,
-          });
-        }
-      } catch (err) {
-        results.errors.push({
-          event: event.summary,
-          error: err.message,
-        });
-      }
-    }
-  } catch (err) {
-    results.errors.push(`Pipeline error: ${err.message}`);
+    results.deleted = removeResults.deleted;
+    await chrome.storage.local.remove([
+      "lastPreviewResults",
+      "lastPreviewWindow",
+      "commutesManaged",
+      "lastAutoRefreshAt",
+    ]);
+    return results;
+  } catch (error) {
+    results.errors.push(error.message);
+    return results;
   }
-
-  // Store results so the popup can read them
-  await chrome.storage.local.set({ lastRunResults: results });
-  return results;
 }
 
-// --------------- MESSAGE HANDLING ---------------
+async function runDailyRefresh() {
+  const settings = await getSettings();
+  const { commutesManaged } = await chrome.storage.local.get("commutesManaged");
 
-// Listen for messages from the popup
-chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message.action === "runPipeline") {
-    runPipeline().then(sendResponse).catch((err) => {
-      sendResponse({ errors: [err.message] });
-    });
-    return true; // keep the message channel open for async response
+  if (!settings.enabled || !settings.autoRefresh || !commutesManaged) {
+    return {
+      refreshed: false,
+      reason: "Auto refresh is disabled or no commute blocks are currently managed.",
+    };
   }
 
-  if (message.action === "getLastResults") {
-    chrome.storage.local.get("lastRunResults", (data) => {
-      sendResponse(data.lastRunResults || null);
+  const results = await addCommutesToCalendar();
+  await chrome.storage.local.set({ lastAutoRefreshAt: new Date().toISOString() });
+  return {
+    refreshed: true,
+    results,
+  };
+}
+
+function serializeCommutes(commutes) {
+  return commutes.map((commute) => ({
+    tripId: commute.tripId,
+    type: commute.type,
+    label: commute.label,
+    originName: commute.originName,
+    destinationName: commute.destinationName,
+    origin: commute.origin,
+    destination: commute.destination,
+    arrivalTarget: commute.arrivalTarget?.toISOString() || null,
+    departureTarget: commute.departureTarget?.toISOString() || null,
+    earliestDeparture: commute.earliestDeparture?.toISOString() || null,
+    sourceEventId: commute.sourceEventId,
+    destinationEventId: commute.destinationEventId,
+    travelMode: commute.travelMode,
+    travelModeLabel: commute.travelModeLabel,
+    start: commute.start.toISOString(),
+    end: commute.end.toISOString(),
+    durationText: commute.route.durationText,
+    distanceText: commute.route.distanceText,
+    compactSummary: commute.route.compactSummary,
+    summary: commute.route.summary,
+    route: commute.route,
+    mapsUrl: commute.route.mapsUrl,
+  }));
+}
+
+async function saveTripModeOverrides(plannedCommutes) {
+  const settings = await getSettings();
+  const tripModeOverrides = { ...settings.tripModeOverrides };
+
+  for (const commute of plannedCommutes) {
+    if (commute.tripId && commute.travelMode) {
+      tripModeOverrides[commute.tripId] = commute.travelMode;
+    }
+  }
+
+  await saveSettings({ ...settings, tripModeOverrides });
+}
+
+function hydrateCommute(commute) {
+  return {
+    ...commute,
+    start: new Date(commute.start),
+    end: new Date(commute.end),
+    route: commute.route || {
+      durationText: commute.durationText,
+      distanceText: commute.distanceText,
+      compactSummary: commute.compactSummary,
+      summary: commute.summary,
+      mapsUrl: commute.mapsUrl,
+      transitSteps: commute.transitSteps || [],
+      navigationSteps: commute.navigationSteps || [],
+    },
+  };
+}
+
+function getTravelModeLabel(travelMode) {
+  const labels = {
+    TRANSIT: "Transit",
+    WALK: "Walking",
+    DRIVE: "Driving",
+    BICYCLE: "Biking",
+  };
+
+  return labels[travelMode] || travelMode;
+}
+
+chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+  if (message.action === "getSettings") {
+    getSettings().then(sendResponse);
+    return true;
+  }
+
+  if (message.action === "saveSettings") {
+    saveSettings(message.settings || {}).then(() => getSettings()).then(sendResponse);
+    return true;
+  }
+
+  if (message.action === "previewCommutes") {
+    previewCommutes().then(sendResponse);
+    return true;
+  }
+
+  if (message.action === "addCommutesToCalendar") {
+    addCommutesToCalendar().then(sendResponse);
+    return true;
+  }
+
+  if (message.action === "addCurrentCommutesToCalendar") {
+    addCurrentCommutesToCalendar(message.planned || []).then(sendResponse);
+    return true;
+  }
+
+  if (message.action === "recalculateCommuteMode") {
+    recalculateCommuteMode(message.commute, message.travelMode).then(sendResponse);
+    return true;
+  }
+
+  if (message.action === "removeCommutesFromCalendar") {
+    removeCommutesFromCalendar().then(sendResponse);
+    return true;
+  }
+
+  if (message.action === "runDailyRefresh") {
+    runDailyRefresh().then(sendResponse);
+    return true;
+  }
+
+  if (message.action === "getLastPreview") {
+    chrome.storage.local.get("lastPreviewResults", (data) => {
+      sendResponse(data.lastPreviewResults || null);
     });
     return true;
   }
+
+  return false;
 });
 
-// --------------- PERIODIC ALARM (Step 8 — wired up now, activates later) ---------------
-
-chrome.alarms.create("transitCheck", { periodInMinutes: 30 });
+chrome.alarms.get("dailyCommuteRefresh", (alarm) => {
+  if (!alarm) {
+    chrome.alarms.create("dailyCommuteRefresh", {
+      periodInMinutes: 24 * 60,
+    });
+  }
+});
 
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === "transitCheck") {
-    console.log("⏰ Running scheduled transit check...");
-    runPipeline();
+  if (alarm.name === "dailyCommuteRefresh") {
+    runDailyRefresh();
   }
 });
 

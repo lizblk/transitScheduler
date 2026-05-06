@@ -18,7 +18,7 @@ New Yorkers who rely on the subway often have to manually cross reference their 
 
 ## 3. Solution
 
-Our MVP is a Google Calendar browser extension that integrates MTA Real-Time Subway feeds and Google Maps transit data to automatically calculate and insert "depart by" reminders into calendar events based on the user's origin, the event location, and live subway conditions. The three core features are: (1) automatic transit route calculation using Google Maps API, (2) real-time MTA delay awareness via MTA Developer Tools GTFS-RT feeds, and (3) smart calendar event annotations that suggest optimal departure times.
+Our MVP is a Google Calendar browser extension that uses Google route data to calculate commute blocks between calendar events with locations. Instead of only adding a note to an existing event, the extension previews and creates real Google Calendar events such as "Commute: Class -> Work" between scheduled commitments. MTA Real-Time Subway feeds are planned as a later enhancement for NYC-specific delay awareness once the base calendar workflow is reliable.
 
 ---
 
@@ -43,10 +43,11 @@ The base extension will be free (freemium), with a premium tier (~$3–5/month) 
 ## 7. MVP Features
 
 - **Event Location Detection:** Parse Google Calendar event locations to identify destinations
-- **Route Calculation:** Use Google Maps Directions API (transit mode) to compute the best subway route from a user-defined home/origin
-- **Real-Time Delay Integration:** Pull live GTFS-RT feeds from MTA Developer Tools to flag delays on the user's route
-- **Departure Reminder Injection:** Automatically add a "Leave by [time]" note or secondary event to the calendar
-- **Chrome Extension UI:** Simple popup for setting home address and toggling the extension on/off
+- **Route Calculation:** Use the Google Routes API to compute commute time between consecutive calendar event locations
+- **Commute Event Creation:** Add real "Commute: Event A -> Event B" blocks to Google Calendar
+- **Home Commutes:** Optionally add home-to-first-event and last-event-to-home commute blocks
+- **Chrome Extension UI:** Popup for settings, route preview, and adding commute events
+- **Future MTA Delay Integration:** Pull live GTFS-RT feeds from MTA Developer Tools to flag delays on subway routes
 
 ---
 
@@ -55,7 +56,7 @@ The base extension will be free (freemium), with a premium tier (~$3–5/month) 
 | Week | Milestone |
 |------|-----------|
 | Week 1–2 | Project setup, OAuth 2.0 for Google Calendar API, basic extension scaffold |
-| Week 3–4 | Google Maps Directions API integration, parse event locations |
+| Week 3–4 | Google Routes API integration, parse event locations |
 | Week 5–6 | MTA GTFS-RT feed integration, delay detection logic |
 | Week 7–8 | Combine transit data with calendar event injection, UI polish |
 | Week 9 | User testing, bug fixes, demo prep |
@@ -78,13 +79,13 @@ The base extension will be free (freemium), with a premium tier (~$3–5/month) 
 **Competitive Analysis:** Existing tools like Citymapper and Google Maps already show transit routes, but neither integrates directly into Google Calendar as a scheduling layer. Our solution is differentiated by living inside the calendar rather than requiring the user to switch apps.  
 **Success Metrics:** Departure time accuracy within ±5 minutes, successful calendar event injection for 90%+ of events with valid NYC addresses, and positive usability feedback from testers.
 
-**API Feasibility & Authentication Strategy:** A key technical concern is orchestrating three external APIs — Google Calendar, Google Maps, and MTA GTFS-RT — within a single Chrome extension. We've planned for this explicitly. Google Calendar and Google Maps both use Google's OAuth 2.0 system, meaning a single OAuth consent flow gives the user access to both APIs under one token, significantly reducing authentication complexity. Chrome extensions have native support for `chrome.identity` to manage this OAuth flow seamlessly. The MTA GTFS-RT feed is a public API requiring only a free API key with no OAuth flow at all. It is a straightforward authenticated HTTP request. All three API calls will be handled in the extension's background service worker, which acts as a lightweight backend, keeping credentials secure and calls centralized.
+**API Feasibility & Authentication Strategy:** A key technical concern is orchestrating Google Calendar, Google Routes, and eventually MTA GTFS-RT within a single Chrome extension. Google Calendar access uses OAuth 2.0 through Chrome's `chrome.identity` API. Google Routes requests use a restricted Google Maps Platform API key. The MTA GTFS-RT feed can be added later with a free MTA API key and no OAuth flow. API calls are centralized in the extension's background service worker so the popup can stay focused on settings and user actions.
 
 ---
 
 ## 11. Scalability
 
-- **Phase 1 (Now — Semester):** Chrome extension for NYC subway using MTA feeds + Google APIs, free tier, desktop-only
+- **Phase 1 (Now — Semester):** Chrome extension using Google Calendar + Google Routes APIs, free tier, desktop-only
 - **Phase 2 (6 months):** Support for NJ Transit and LIRR feeds, saved home/work locations, premium subscription launch, and multi-origin support. A mobile-friendly web app companion (not native) will be explored as a lighter-weight alternative to a full native mobile build, given the scope constraints of a 2-person team.
 - **Phase 3 (12 months):** Expand to other major US transit cities (Chicago CTA, DC Metro, SF BART), native mobile app development once the core product is stable, and corporate/team calendar integrations
 
@@ -96,7 +97,7 @@ The base extension will be free (freemium), with a premium tier (~$3–5/month) 
 
 - MTA Developer Tools & GTFS-RT Feeds: https://api.mta.info/
 - Google Calendar API: https://developers.google.com/calendar/api/guides/overview
-- Google Maps Directions API (Transit Mode): https://developers.google.com/maps/documentation/directions/get-directions
+- Google Routes API Transit Routes: https://developers.google.com/maps/documentation/routes/transit-route
 - Chrome Identity API (OAuth): https://developer.chrome.com/docs/extensions/reference/api/identity
 - MTA Daily Ridership Data: https://new.mta.info/agency/new-york-city-transit/subway-bus-ridership-2023
 - Google Calendar User Statistics: https://backlinko.com/google-workspace-users

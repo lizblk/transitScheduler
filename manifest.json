@@ -10,15 +10,21 @@
     "alarms"
   ],
 
+  "host_permissions": [
+    "https://www.googleapis.com/*",
+    "https://routes.googleapis.com/*"
+  ],
+
   "oauth2": {
-    "client_id": "951153151138-figbsu2kkcsk37m01nh3c1fl58lvks4r.apps.googleusercontent.com",
+    "client_id": "482885884319-6r5i265nebg2vbeqjapvnkvgjojekcv3.apps.googleusercontent.com",
     "scopes": [
-      "https://www.googleapis.com/auth/calendar.events"
+      "https://www.googleapis.com/auth/calendar"
     ]
   },
 
   "background": {
-    "service_worker": "background.js"
+    "service_worker": "background.js",
+    "type": "module"
   },
 
   "action": {
