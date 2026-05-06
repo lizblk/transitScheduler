@@ -11,7 +11,7 @@
     <header class="header">
       <div>
         <h1>NYC Transit Scheduler</h1>
-        <p class="subtitle">Preview and add commute blocks to Google Calendar</p>
+        <p class="subtitle">Route-aware commute blocks for Google Calendar</p>
       </div>
       <label class="switch" title="Enable extension">
         <input type="checkbox" id="enabled" />
@@ -19,57 +19,61 @@
       </label>
     </header>
 
-    <section class="section">
-      <label for="home-address" class="label">Home Address</label>
-      <input
-        type="text"
-        id="home-address"
-        placeholder="350 5th Ave, New York, NY 10118"
-        spellcheck="false"
-      />
-    </section>
-
-    <section class="section">
-      <label class="field">
-        <span class="label">Default Mode</span>
-        <select id="travel-mode">
-          <option value="TRANSIT">Transit</option>
-          <option value="WALK">Walking</option>
-          <option value="DRIVE">Driving</option>
-          <option value="BICYCLE">Biking</option>
-        </select>
+    <section class="settings-panel">
+      <label class="field field-wide">
+        <span class="label">Home Address</span>
+        <input
+          type="text"
+          id="home-address"
+          placeholder="350 5th Ave, New York, NY 10118"
+          spellcheck="false"
+        />
       </label>
+
+      <div class="settings-grid">
+        <label class="field">
+          <span class="label">Default Mode</span>
+          <select id="travel-mode">
+            <option value="TRANSIT">Transit</option>
+            <option value="WALK">Walking</option>
+            <option value="DRIVE">Driving</option>
+            <option value="BICYCLE">Biking</option>
+          </select>
+        </label>
+
+        <label class="field">
+          <span class="label">Plan</span>
+          <select id="planning-window">
+            <option value="TODAY">Today</option>
+            <option value="NEXT_24_HOURS">Next 24 hours</option>
+            <option value="THIS_WEEK">This week</option>
+          </select>
+        </label>
+      </div>
+
+      <details class="preferences">
+        <summary>Preferences</summary>
+        <label class="check-row">
+          <input type="checkbox" id="include-home-commutes" />
+          <span>Add home-to-first and last-to-home blocks</span>
+        </label>
+
+        <label class="check-row">
+          <input type="checkbox" id="use-separate-calendar" />
+          <span>Use separate Transit Scheduler calendar</span>
+        </label>
+
+        <label class="check-row">
+          <input type="checkbox" id="auto-refresh" />
+          <span>Automatically refresh commute blocks daily</span>
+        </label>
+      </details>
     </section>
-
-    <section class="section">
-      <label class="field">
-        <span class="label">Planning Window</span>
-        <select id="planning-window">
-          <option value="TODAY">Today</option>
-          <option value="NEXT_24_HOURS">Next 24 hours</option>
-          <option value="THIS_WEEK">This week</option>
-        </select>
-      </label>
-    </section>
-
-    <label class="check-row">
-      <input type="checkbox" id="include-home-commutes" />
-      <span>Add home-to-first and last-to-home blocks</span>
-    </label>
-
-    <label class="check-row">
-      <input type="checkbox" id="use-separate-calendar" />
-      <span>Use separate Transit Scheduler calendar</span>
-    </label>
-
-    <label class="check-row">
-      <input type="checkbox" id="auto-refresh" />
-      <span>Automatically refresh commute blocks daily</span>
-    </label>
 
     <div class="actions">
       <button id="save-settings" class="btn btn-secondary">Save Settings</button>
       <button id="preview-btn" class="btn btn-primary">Preview</button>
+      <button id="refresh-btn" class="btn btn-secondary">Refresh Routes</button>
       <button id="add-btn" class="btn btn-success" disabled>Add to Calendar</button>
       <button id="remove-btn" class="btn btn-danger">Remove Commute Blocks</button>
     </div>

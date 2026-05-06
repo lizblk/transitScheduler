@@ -8,6 +8,7 @@ const elements = {
   autoRefresh: document.getElementById("auto-refresh"),
   saveSettings: document.getElementById("save-settings"),
   previewBtn: document.getElementById("preview-btn"),
+  refreshBtn: document.getElementById("refresh-btn"),
   addBtn: document.getElementById("add-btn"),
   removeBtn: document.getElementById("remove-btn"),
   status: document.getElementById("status"),
@@ -61,12 +62,33 @@ elements.addBtn.addEventListener("click", async () => {
   });
 });
 
+elements.refreshBtn.addEventListener("click", async () => {
+  await saveSettings();
+  await runAction(elements.refreshBtn, "Refreshing...", async () => {
+    const response = await sendMessage({ action: "runDailyRefresh" });
+
+    if (!response.refreshed) {
+      setStatus(response.reason || "Add commute blocks once before refreshing routes.", "warning");
+      return;
+    }
+
+    renderResults(response.results);
+
+    if (response.results?.errors?.length) {
+      setStatus(buildStatus(response.results, "Some routes could not be refreshed."), "error");
+      return;
+    }
+
+    setStatus("Routes refreshed.", "success");
+  });
+});
+
 elements.removeBtn.addEventListener("click", async () => {
   await runAction(elements.removeBtn, "Removing...", async () => {
     const results = await sendMessage({ action: "removeCommutesFromCalendar" });
 
     if (results.errors?.length) {
-      setStatus(results.errors.join(" "), "error");
+      setStatus(formatErrorList(results.errors), "error");
       return;
     }
 
@@ -114,7 +136,7 @@ function renderResults(results) {
   elements.addBtn.disabled = !results.planned?.length || Boolean(results.errors?.length);
 
   if (!results.planned?.length && !results.skipped?.length && !results.errors?.length) {
-    appendResult("empty", "No commute blocks found", "Add locations to upcoming events and preview again.");
+    appendResult("empty", "No commute blocks found", "Add locations to upcoming events and preview again.", "", "Empty");
     return;
   }
 
@@ -123,11 +145,12 @@ function renderResults(results) {
   }
 
   for (const item of results.skipped || []) {
-    appendResult("skipped", item.label || "Skipped", item.reason || String(item));
+    const reason = item.reason || String(item);
+    appendResult("skipped", item.label || "Skipped", formatFriendlyError(reason), "", getBadgeForSkip(reason));
   }
 
   for (const item of results.errors || []) {
-    appendResult("error-item", "Error", typeof item === "string" ? item : item.message);
+    appendResult("error-item", "Needs attention", formatFriendlyError(item), "", "Issue");
   }
 }
 
@@ -139,7 +162,16 @@ function appendPlannedResult(item) {
   const header = document.createElement("div");
   header.className = "result-event";
   header.textContent = item.label;
-  div.appendChild(header);
+
+  const badge = document.createElement("span");
+  badge.className = "badge badge-ready";
+  badge.textContent = currentResults?.created ? "Added" : "Ready";
+
+  const topRow = document.createElement("div");
+  topRow.className = "result-top-row";
+  topRow.appendChild(header);
+  topRow.appendChild(badge);
+  div.appendChild(topRow);
 
   const controls = document.createElement("div");
   controls.className = "result-controls";
@@ -198,7 +230,7 @@ async function updateCommuteMode(tripId, travelMode, rowEl) {
     });
 
     if (result.error) {
-      detail.textContent = result.error;
+      detail.textContent = formatFriendlyError(result.error);
       rowEl.classList.add("has-error");
       select.value = commute.travelMode;
       return;
@@ -209,7 +241,7 @@ async function updateCommuteMode(tripId, travelMode, rowEl) {
     renderResults(currentResults);
     setStatus("Commute updated.", "success");
   } catch (error) {
-    detail.textContent = error.message || originalText;
+    detail.textContent = formatFriendlyError(error.message || originalText);
     rowEl.classList.add("has-error");
   } finally {
     rowEl.classList.remove("is-loading");
@@ -238,14 +270,27 @@ function getTravelModeOptions() {
   ];
 }
 
-function appendResult(className, title, detail, href = "") {
+function appendResult(className, title, detail, href = "", badgeText = "") {
   const div = document.createElement("div");
   div.className = `result-item ${className}`;
 
   const titleEl = document.createElement("div");
   titleEl.className = "result-event";
   titleEl.textContent = title;
-  div.appendChild(titleEl);
+
+  if (badgeText) {
+    const badge = document.createElement("span");
+    badge.className = `badge ${getBadgeClass(badgeText)}`;
+    badge.textContent = badgeText;
+
+    const topRow = document.createElement("div");
+    topRow.className = "result-top-row";
+    topRow.appendChild(titleEl);
+    topRow.appendChild(badge);
+    div.appendChild(topRow);
+  } else {
+    div.appendChild(titleEl);
+  }
 
   if (detail) {
     const detailEl = document.createElement("div");
@@ -274,7 +319,7 @@ async function runAction(button, busyText, callback) {
   try {
     await callback();
   } catch (error) {
-    setStatus(error.message, "error");
+    setStatus(formatFriendlyError(error.message), "error");
   } finally {
     button.disabled = false;
     button.textContent = originalText;
@@ -282,13 +327,56 @@ async function runAction(button, busyText, callback) {
 }
 
 function buildStatus(results, fallback) {
-  if (results.errors?.length) return results.errors.join(" ");
+  if (results.errors?.length) return formatErrorList(results.errors);
   return fallback;
 }
 
 function setStatus(text, type = "") {
   elements.status.textContent = text;
   elements.status.className = `status-text ${type}`;
+}
+
+function formatErrorList(errors) {
+  return errors.map(formatFriendlyError).join(" ");
+}
+
+function formatFriendlyError(error) {
+  const message = typeof error === "string" ? error : error?.message || String(error);
+
+  if (message.includes("Missing Google Maps API key")) {
+    return "Routes are not configured yet. Add the Google Routes API key in developer setup.";
+  }
+
+  if (message.includes("Authorization") || message.includes("OAuth") || message.includes("401")) {
+    return "Google Calendar needs authorization. Reload the extension and sign in again.";
+  }
+
+  if (message.includes("Calendar API error")) {
+    return "Google Calendar could not be updated. Try refreshing again.";
+  }
+
+  if (message.includes("Routes API error")) {
+    return "Google Maps could not calculate this route. Try another travel mode.";
+  }
+
+  if (message.includes("Commute overlaps")) {
+    return "This commute overlaps the previous event.";
+  }
+
+  return message;
+}
+
+function getBadgeForSkip(reason) {
+  if (reason.includes("overlaps")) return "Overlap";
+  if (reason.includes("ended")) return "Past";
+  return "Skipped";
+}
+
+function getBadgeClass(badgeText) {
+  const normalized = badgeText.toLowerCase();
+  if (normalized === "added" || normalized === "ready") return "badge-ready";
+  if (normalized === "overlap" || normalized === "issue") return "badge-issue";
+  return "badge-muted";
 }
 
 function formatTime(isoString) {
