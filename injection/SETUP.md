@@ -14,7 +14,7 @@
 4. The extension will appear in your list. With the manifest key in this repo, the extension ID should be:
 
    ```text
-   lnnpecbnopoojkbcbfepgjkjjniffhol
+   aiaijloileajfeblodcgofpealkfghge
    ```
 
 ## Step 2: Set Up Google Cloud Credentials
@@ -44,7 +44,7 @@
 14. Paste the stable extension ID:
 
    ```text
-   lnnpecbnopoojkbcbfepgjkjjniffhol
+   aiaijloileajfeblodcgofpealkfghge
    ```
 15. Click Create — copy the **Client ID** (ends in `.apps.googleusercontent.com`)
 

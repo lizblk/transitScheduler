@@ -3,7 +3,7 @@
   "name": "NYC Transit Scheduler",
   "version": "0.1.0",
   "description": "Adds route-aware commute blocks between Google Calendar events.",
-  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAw+RJk7bT0BVWLUEQjVrLlHLkXT96hVdUsUq8ycl4rTsxfUBQAZmi5NwhJJpt/X5zHvNg5YIZP+dx7s36RPh5cezvVpglTCnNd5OuPtn32bHQNkoQfYikhvE7kguTX5MGragYYZ3RLSOeM5MeL270/tEbht6oK5IGSSTFJxCqrRYGJEVw4c0ItRiZxLyj5Vlse5eqC0WQdt/kzY6n2eWfI4lHrDWyWu78AKz3wj1aEMietosdMw7Trgb08SVV85QM6cem6qsxeMYilNtEqTu4068E3Q/wr3Hll1+O6gxpeP668q9n08fCSWHrLSoqWeouiOVaTU/gQIDAQAB",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAmCSgJeJBrE8HUCs6n0cJp5H4hdzIwzZ0a0SyaneySwYEI485zw56FZPhOUIzFAA7pGCLXBksIIaJnzeprHeoRfKD1BeBuced8u0GfGHJ68kbusiBdLHjA9YhRosGGQWKKrZ8kY572NWK/sEJMhjYbXzpjD80Lw510CaKDF66fk8xPinr3c+LaUQj23EBGTJPKKkehdlLFwnn/9/iR0KqOa4KvQgQu7cas6DEU5E8DuMhcBEACnE6Lmxls+NvAkac0mWD53/rYqezb1m/hTpRV5pWz+cQTkLX045ltDV2azpB2Tj24IiCP8QFE894ClegR5x72r/93NKQjt5FiT9CiwIDAQAB",
 
   "permissions": [
     "identity",
