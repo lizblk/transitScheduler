@@ -1,17 +1,6 @@
-import { ROUTES_API_URL, TRAVEL_MODES } from "./constants.js";
+import { ROUTES_PROXY_URL, TRAVEL_MODES } from "./constants.js";
 
 const TRANSFER_ARROW = "→";
-
-const FIELD_MASK = [
-  "routes.duration",
-  "routes.distanceMeters",
-  "routes.legs.steps.localizedValues",
-  "routes.legs.steps.navigationInstruction",
-  "routes.legs.steps.transitDetails",
-  "routes.legs.steps.travelMode",
-  "routes.localizedValues",
-  "routes.routeLabels",
-].join(",");
 
 export async function calculateRoute({
   origin,
@@ -19,10 +8,9 @@ export async function calculateRoute({
   arrivalTime,
   departureTime,
   travelMode,
-  mapsApiKey,
 }) {
-  if (!mapsApiKey) {
-    throw new Error("Missing Google Maps API key. Add it in the extension popup settings.");
+  if (ROUTES_PROXY_URL.includes("YOUR_DEPLOYED_BACKEND_URL")) {
+    throw new Error("Routes proxy is not configured. Deploy the backend and update ROUTES_PROXY_URL.");
   }
 
   const body = {
@@ -49,12 +37,10 @@ export async function calculateRoute({
     };
   }
 
-  const response = await fetch(ROUTES_API_URL, {
+  const response = await fetch(ROUTES_PROXY_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      "X-Goog-Api-Key": mapsApiKey,
-      "X-Goog-FieldMask": FIELD_MASK,
     },
     body: JSON.stringify(body),
   });

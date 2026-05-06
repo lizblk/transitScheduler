@@ -197,7 +197,6 @@ async function recalculateCommuteMode(commute, travelMode) {
           ? new Date(commute.earliestDeparture)
           : null,
       travelMode,
-      mapsApiKey: settings.mapsApiKey,
     });
 
     if (!route) {

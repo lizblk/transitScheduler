@@ -9,7 +9,6 @@ export async function getSettings() {
   const values = await chrome.storage.sync.get({
     enabled: true,
     homeAddress: "",
-    mapsApiKey: "",
     travelMode: DEFAULT_TRAVEL_MODE,
     planningWindow: DEFAULT_PLANNING_WINDOW,
     autoRefresh: true,
@@ -22,7 +21,6 @@ export async function getSettings() {
   return {
     enabled: Boolean(values.enabled),
     homeAddress: values.homeAddress.trim(),
-    mapsApiKey: values.mapsApiKey.trim(),
     travelMode: values.travelMode,
     planningWindow: values.planningWindow || DEFAULT_PLANNING_WINDOW,
     autoRefresh: Boolean(values.autoRefresh),
@@ -52,10 +50,5 @@ export async function saveSettings(settings) {
   } else if (current.travelMode !== values.travelMode) {
     values.tripModeOverrides = {};
   }
-
-  if (settings.mapsApiKey !== undefined) {
-    values.mapsApiKey = (settings.mapsApiKey || "").trim();
-  }
-
   await chrome.storage.sync.set(values);
 }

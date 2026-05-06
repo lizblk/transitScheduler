@@ -17,7 +17,6 @@ export async function buildCommutePlan(events, settings) {
         arrivalTime: trip.arrivalTarget,
         departureTime: trip.departureTarget || trip.earliestDeparture,
         travelMode,
-        mapsApiKey: settings.mapsApiKey,
       });
 
       if (!route) {

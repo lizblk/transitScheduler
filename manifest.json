@@ -12,7 +12,7 @@
 
   "host_permissions": [
     "https://www.googleapis.com/*",
-    "https://routes.googleapis.com/*"
+    "https://transit-scheduler-three.vercel.app/*"
   ],
 
   "oauth2": {

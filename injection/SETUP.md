@@ -40,16 +40,20 @@
 14. Paste the **extension ID** from Step 1
 15. Click Create — copy the **Client ID** (ends in `.apps.googleusercontent.com`)
 
-### Create Maps API Key
+### Create Maps API Key for the Backend
 16. Back in Credentials, click **Create Credentials → API Key**
 17. Click **Restrict Key** → under API restrictions, select **Routes API** only
-18. Save the key
+18. Save the key for your backend environment variable, not the extension source.
 
 ## Step 3: Configure the Extension
 
 1. Open `manifest.json` and replace the OAuth client ID with your actual Client ID.
 
-2. Keep your Maps API key out of source control. For local demos, configure it once in extension storage rather than showing it in the user-facing popup.
+2. Deploy the route proxy in `api/routes.js`. See `docs/DEPLOYMENT.md`.
+
+3. Open `src/constants.js` and replace `https://YOUR_DEPLOYED_BACKEND_URL/api/routes` with your deployed proxy URL.
+
+4. Open `manifest.json` and replace `https://YOUR_DEPLOYED_BACKEND_URL/*` with your deployed backend origin, for example `https://transit-scheduler.vercel.app/*`.
 
 ## Step 4: Reload and Test
 
@@ -90,10 +94,13 @@ nyc-transit-scheduler/
 │       ├── popup.html     # Extension popup UI
 │       ├── popup.css      # Popup styles
 │       └── popup.js       # Popup logic
+├── api/
+│   └── routes.js          # Serverless route proxy for Google Routes API
 ├── injection/icons/
 │   ├── icon16.png
 │   ├── icon48.png
 │   └── icon128.png
 └── docs/
+    ├── DEPLOYMENT.md      # Backend proxy and publishing setup
     └── PROJECT_PLAN.md    # Architecture and MVP roadmap
 ```

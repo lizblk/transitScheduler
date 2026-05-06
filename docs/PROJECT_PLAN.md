@@ -33,7 +33,10 @@ src/calendarApi.js
   Handles OAuth, Calendar API requests, and event filtering helpers.
 
 src/routeApi.js
-  Calls the Google Routes API and normalizes route responses.
+  Calls the route proxy and normalizes route responses.
+
+api/routes.js
+  Serverless proxy that calls Google Routes API with the backend API key.
 
 src/commutePlanner.js
   Turns calendar events and settings into planned commute blocks.
