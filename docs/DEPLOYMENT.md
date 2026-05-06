@@ -2,10 +2,11 @@
 
 ## Routes Proxy
 
-The Chrome extension should not ship a Google Routes API key. Instead, it calls a small backend endpoint:
+The Chrome extension should not ship a Google Maps API key. Instead, it calls small backend endpoints:
 
 ```text
 Chrome extension -> /api/routes -> Google Routes API
+Chrome extension -> /api/places -> Google Places API
 ```
 
 The backend reads the key from an environment variable:
@@ -42,7 +43,7 @@ export const ROUTES_PROXY_URL = "https://transit-scheduler.vercel.app/api/routes
 
 For the key stored in Vercel:
 
-- Restrict APIs to **Routes API** only.
+- Restrict APIs to **Routes API** and **Places API** only.
 - Set billing alerts and quota limits for demo safety.
 - If your host provides stable outbound IPs, add an IP restriction. Vercel does not usually provide this on standard deployments, so API restriction plus quotas are the practical class-demo minimum.
 

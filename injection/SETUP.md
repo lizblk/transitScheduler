@@ -28,6 +28,7 @@
 4. Search for and enable:
    - **Google Calendar API**
    - **Routes API** (under Google Maps)
+   - **Places API** (under Google Maps)
 
 ### Configure OAuth consent screen
 5. Go to **APIs & Services → OAuth consent screen**
@@ -50,7 +51,7 @@
 
 ### Create Maps API Key for the Backend
 16. Back in Credentials, click **Create Credentials → API Key**
-17. Click **Restrict Key** → under API restrictions, select **Routes API** only
+17. Click **Restrict Key** → under API restrictions, select **Routes API** and **Places API**
 18. Save the key for your backend environment variable, not the extension source.
 
 ## Step 3: Configure the Extension

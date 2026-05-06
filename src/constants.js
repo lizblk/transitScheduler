@@ -4,6 +4,7 @@ export const COMMUTE_CALENDAR_SUMMARY = "Transit Scheduler";
 
 export const CALENDAR_API_BASE = "https://www.googleapis.com/calendar/v3";
 export const ROUTES_PROXY_URL = "https://transit-scheduler-three.vercel.app/api/routes";
+export const PLACES_PROXY_URL = "https://transit-scheduler-three.vercel.app/api/places";
 
 export const DEFAULT_LOOKAHEAD_HOURS = 24;
 export const DEFAULT_PLANNING_WINDOW = "NEXT_24_HOURS";

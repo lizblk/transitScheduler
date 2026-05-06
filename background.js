@@ -6,6 +6,7 @@ import { fetchTimedEvents, getAuthToken, getCommuteCalendarId } from "./src/cale
 import { removeCommuteEvents, replaceCommuteEvents } from "./src/commuteEvents.js";
 import { buildCommutePlan } from "./src/commutePlanner.js";
 import { calculateRoute } from "./src/routeApi.js";
+import { autocompleteAddress } from "./src/placesApi.js";
 import { getSettings, saveSettings } from "./src/settings.js";
 
 function getWindow(settings) {
@@ -394,6 +395,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     chrome.storage.local.get("lastPreviewResults", (data) => {
       sendResponse(data.lastPreviewResults || null);
     });
+    return true;
+  }
+
+  if (message.action === "autocompleteAddress") {
+    autocompleteAddress(message.input || "")
+      .then((suggestions) => sendResponse({ suggestions }))
+      .catch((error) => sendResponse({ error: error.message, suggestions: [] }));
     return true;
   }
 

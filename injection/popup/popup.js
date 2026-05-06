@@ -1,6 +1,7 @@
 const elements = {
   enabled: document.getElementById("enabled"),
   homeAddress: document.getElementById("home-address"),
+  addressSuggestions: document.getElementById("address-suggestions"),
   travelMode: document.getElementById("travel-mode"),
   planningWindow: document.getElementById("planning-window"),
   includeHomeCommutes: document.getElementById("include-home-commutes"),
@@ -18,6 +19,7 @@ const elements = {
 };
 
 let currentResults = null;
+let addressAutocompleteTimer = null;
 
 document.addEventListener("DOMContentLoaded", async () => {
   const settings = await sendMessage({ action: "getSettings" });
@@ -30,6 +32,15 @@ document.addEventListener("DOMContentLoaded", async () => {
 elements.saveSettings.addEventListener("click", async () => {
   await saveSettings();
   setStatus("Settings saved.", "success");
+});
+
+elements.homeAddress.addEventListener("input", () => {
+  window.clearTimeout(addressAutocompleteTimer);
+  addressAutocompleteTimer = window.setTimeout(showAddressSuggestions, 250);
+});
+
+elements.homeAddress.addEventListener("blur", () => {
+  window.setTimeout(hideAddressSuggestions, 150);
 });
 
 elements.previewBtn.addEventListener("click", async () => {
@@ -108,6 +119,62 @@ function renderSettings(settings) {
   elements.includeHomeCommutes.checked = settings.includeHomeCommutes;
   elements.useSeparateCalendar.checked = settings.useSeparateCalendar !== false;
   elements.autoRefresh.checked = settings.autoRefresh;
+}
+
+async function showAddressSuggestions() {
+  const input = elements.homeAddress.value.trim();
+  if (input.length < 3) {
+    hideAddressSuggestions();
+    return;
+  }
+
+  try {
+    const result = await sendMessage({ action: "autocompleteAddress", input });
+    if (result.error || !result.suggestions?.length) {
+      hideAddressSuggestions();
+      return;
+    }
+
+    renderAddressSuggestions(result.suggestions);
+  } catch (_error) {
+    hideAddressSuggestions();
+  }
+}
+
+function renderAddressSuggestions(suggestions) {
+  elements.addressSuggestions.innerHTML = "";
+
+  for (const suggestion of suggestions) {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "address-suggestion";
+
+    const main = document.createElement("span");
+    main.className = "address-main";
+    main.textContent = suggestion.mainText || suggestion.text;
+    button.appendChild(main);
+
+    if (suggestion.secondaryText) {
+      const secondary = document.createElement("span");
+      secondary.className = "address-secondary";
+      secondary.textContent = suggestion.secondaryText;
+      button.appendChild(secondary);
+    }
+
+    button.addEventListener("mousedown", (event) => {
+      event.preventDefault();
+      elements.homeAddress.value = suggestion.text;
+      hideAddressSuggestions();
+    });
+
+    elements.addressSuggestions.appendChild(button);
+  }
+
+  elements.addressSuggestions.classList.remove("hidden");
+}
+
+function hideAddressSuggestions() {
+  elements.addressSuggestions.classList.add("hidden");
 }
 
 async function saveSettings() {
