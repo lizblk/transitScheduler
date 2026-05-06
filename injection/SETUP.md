@@ -11,7 +11,11 @@
 1. Open Chrome and navigate to `chrome://extensions/`
 2. Enable **Developer mode** (toggle in the top-right corner)
 3. Click **Load unpacked** and select this `nyc-transit-scheduler` folder
-4. The extension will appear in your list — copy the **ID** (a 32-character string like `abcdefghijklmnopqrstuvwxyz...`)
+4. The extension will appear in your list. With the manifest key in this repo, the extension ID should be:
+
+   ```text
+   lnnpecbnopoojkbcbfepgjkjjniffhol
+   ```
 
 ## Step 2: Set Up Google Cloud Credentials
 
@@ -37,7 +41,11 @@
 11. Go to **APIs & Services → Credentials**
 12. Click **Create Credentials → OAuth client ID**
 13. Application type: **Chrome Extension**
-14. Paste the **extension ID** from Step 1
+14. Paste the stable extension ID:
+
+   ```text
+   lnnpecbnopoojkbcbfepgjkjjniffhol
+   ```
 15. Click Create — copy the **Client ID** (ends in `.apps.googleusercontent.com`)
 
 ### Create Maps API Key for the Backend
@@ -73,7 +81,7 @@
 | Consent prompt does not update | Remove/reload the extension or revoke the app from your Google account, then authorize again |
 | "No home address set" | Click the extension icon and enter/save your address |
 | "No transit route found" | The event location may not be a real address — try with a specific street address in a test event |
-| Extension ID changed | If you removed and re-loaded the extension, the ID changes. Update it in Google Cloud credentials. |
+| Extension ID changed | Confirm `manifest.json` includes the `key` field from this repo, then reload the extension. |
 
 ## File Structure
 
