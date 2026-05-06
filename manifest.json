@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "NYC Transit Scheduler",
-  "version": "0.0.0",
-  "description": "Automatically calculates subway departure times and adds reminders to your Google Calendar events.",
+  "version": "0.1.0",
+  "description": "Adds route-aware commute blocks between Google Calendar events.",
 
   "permissions": [
     "identity",
