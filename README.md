@@ -1,105 +1,142 @@
-# NYC Transit Scheduler — Google Calendar Extension
+# NYC Transit Scheduler
 
----
+NYC Transit Scheduler is a Chrome extension that turns Google Calendar locations into route-aware commute blocks. It reads upcoming timed events from the user's primary Google Calendar, calculates routes between events, and creates commute events in a dedicated `Transit Scheduler` calendar.
 
-## 1. Project Title, Team Members & Category
+The project is focused on NYC students and commuters, but the current route engine uses Google Routes data and can work outside NYC as long as event locations are valid.
 
-**Project Title:** NYC Transit Scheduler  
-**Team:** Safwan Chowdhury, Liz Black  
-**Category:** Productivity Tools / Urban Transit Technology
+## Current Features
 
----
+- Reads upcoming Google Calendar events with locations.
+- Plans commutes for **Today**, **Next 24 hours**, or **This week**.
+- Creates real Google Calendar commute events in a separate `Transit Scheduler` calendar.
+- Supports transit, walking, driving, and biking.
+- Lets users choose a default travel mode and override each commute row individually.
+- Optionally adds home-to-first-event and last-event-to-home commute blocks.
+- Adds route-first calendar titles such as `B → 5 | 47 mins`.
+- Adds route summaries, transit steps, stop information, and a compact Google Maps link in event details.
+- Provides Google Places autocomplete for the home address field.
+- Provides daily auto-refresh and a manual **Refresh Routes** button.
+- Uses a Vercel backend proxy so Google Maps API keys are not shipped in the Chrome extension.
 
-## 2. Problem Statement
+## How It Works
 
-New Yorkers who rely on the subway often have to manually cross reference their Google Calendar events with MTA schedules, leading to missed trains and poor commute planning. There is no native tool that automatically suggests when to leave for an event based on real-time subway conditions.
+1. The user signs into Google through Chrome's `chrome.identity` API.
+2. The extension reads upcoming timed events from the user's primary calendar.
+3. Events without locations or exact times are skipped.
+4. The commute planner builds trips between consecutive events, plus optional home commutes.
+5. The extension sends route requests to the deployed backend proxy.
+6. The backend calls Google Routes API or Google Places API using an environment variable API key.
+7. The popup shows editable commute preview cards.
+8. The user adds the current commute plan to Calendar.
+9. Commute events are written to a separate `Transit Scheduler` calendar and tagged with private metadata.
 
----
+## Architecture
 
-## 3. Solution
+```text
+manifest.json
+  Chrome extension configuration, OAuth client, permissions, stable unpacked extension key.
 
-Our MVP is a Google Calendar browser extension that uses Google route data to calculate commute blocks between calendar events with locations. Instead of only adding a note to an existing event, the extension previews and creates real Google Calendar events such as "Commute: Class -> Work" between scheduled commitments. MTA Real-Time Subway feeds are planned as a later enhancement for NYC-specific delay awareness once the base calendar workflow is reliable.
+background.js
+  Service worker. Handles popup messages, Google auth, preview, add, remove, refresh, and autocomplete requests.
 
----
+src/calendarApi.js
+  Google Calendar API helpers, auth token handling, timed event fetching, and commute calendar creation.
 
-## 4. Target Market
+src/commutePlanner.js
+  Builds commute candidates and calculates route plans.
 
-Our primary users are NYC-based professionals, students, and commuters who manage their schedules through Google Calendar — a population of over 3.5 million daily subway riders in New York City. Even capturing a fraction of Google Calendar's ~500M global users who are NYC-based represents a substantial addressable market.
+src/commuteEvents.js
+  Creates/removes commute events and formats Calendar titles/descriptions.
 
----
+src/routeApi.js
+  Calls the route proxy and normalizes Google Routes responses.
 
-## 5. Why It's Valuable
+src/placesApi.js
+  Calls the Places autocomplete proxy.
 
-Missing a meeting because of a delayed F train is a universal NYC frustration that no existing calendar tool addresses natively. This extension eliminates the cognitive overhead of manually checking transit times by bringing real-time subway intelligence directly into the user's existing workflow.
+src/settings.js
+  Reads/writes user settings from Chrome storage.
 
----
+api/routes.js
+  Vercel serverless function that proxies Google Routes API.
 
-## 6. How You'll Make Money
+api/places.js
+  Vercel serverless function that proxies new Google Places API autocomplete.
 
-The base extension will be free (freemium), with a premium tier (~$3–5/month) offering features like multi-stop commute chaining, saved home/work locations, and push notifications for service alerts affecting upcoming events.
+injection/popup/
+  Extension popup HTML, CSS, and client-side interaction logic.
+```
 
----
+## APIs Used
 
-## 7. MVP Features
+- Google Calendar API
+- Google Routes API
+- New Google Places API autocomplete endpoint
+- Chrome Extensions APIs:
+  - `identity`
+  - `storage`
+  - `alarms`
 
-- **Event Location Detection:** Parse Google Calendar event locations to identify destinations
-- **Route Calculation:** Use the Google Routes API to compute commute time between consecutive calendar event locations
-- **Commute Event Creation:** Add real "Commute: Event A -> Event B" blocks to Google Calendar
-- **Home Commutes:** Optionally add home-to-first-event and last-event-to-home commute blocks
-- **Chrome Extension UI:** Popup for settings, route preview, and adding commute events
-- **Future MTA Delay Integration:** Pull live GTFS-RT feeds from MTA Developer Tools to flag delays on subway routes
+## Security Model
 
----
+The Chrome extension does **not** contain a Google Maps API key. Route and address autocomplete requests go through the backend proxy:
 
-## 8. Timeline & Division of Work
+```text
+Chrome extension -> Vercel proxy -> Google Maps Platform APIs
+```
 
-| Week | Milestone |
-|------|-----------|
-| Week 1–2 | Project setup, OAuth 2.0 for Google Calendar API, basic extension scaffold |
-| Week 3–4 | Google Routes API integration, parse event locations |
-| Week 5–6 | MTA GTFS-RT feed integration, delay detection logic |
-| Week 7–8 | Combine transit data with calendar event injection, UI polish |
-| Week 9 | User testing, bug fixes, demo prep |
-| Week 10 | Final demo & submission |
+The backend reads the key from:
 
----
+```text
+GOOGLE_ROUTES_API_KEY
+```
 
-## 9. Team Roles & Responsibilities
+That key should be restricted in Google Cloud to:
 
-| Name | Primary Role | Responsibilities | Est. Codebase % |
-|------|-------------|-----------------|-----------------|
-| Liz | Lead Developer | Google Calendar API integration, Chrome extension architecture, OAuth flow, backend logic | 50% |
-| Safwan | Developer / Tester | MTA feed parsing, Google Maps API integration, UI & QA | 50% |
+- Routes API
+- Places API
 
----
+## Stable Extension ID
 
-## 10. Viability
+This repo includes a `manifest.json` `key` field so everyone loading the unpacked extension gets the same Chrome extension ID:
 
-**User Testing:** We'll conduct informal tests with 5–10 NYC-based students/commuters, measuring whether the "depart by" suggestions are accurate and useful in real scenarios.  
-**Competitive Analysis:** Existing tools like Citymapper and Google Maps already show transit routes, but neither integrates directly into Google Calendar as a scheduling layer. Our solution is differentiated by living inside the calendar rather than requiring the user to switch apps.  
-**Success Metrics:** Departure time accuracy within ±5 minutes, successful calendar event injection for 90%+ of events with valid NYC addresses, and positive usability feedback from testers.
+```text
+aiaijloileajfeblodcgofpealkfghge
+```
 
-**API Feasibility & Authentication Strategy:** A key technical concern is orchestrating Google Calendar, Google Routes, and eventually MTA GTFS-RT within a single Chrome extension. Google Calendar access uses OAuth 2.0 through Chrome's `chrome.identity` API. Google Routes requests use a restricted Google Maps Platform API key. The MTA GTFS-RT feed can be added later with a free MTA API key and no OAuth flow. API calls are centralized in the extension's background service worker so the popup can stay focused on settings and user actions.
+The Google OAuth Chrome Extension client must use that ID.
 
----
+## Setup
 
-## 11. Scalability
+Detailed setup lives in:
 
-- **Phase 1 (Now — Semester):** Chrome extension using Google Calendar + Google Routes APIs, free tier, desktop-only
-- **Phase 2 (6 months):** Support for NJ Transit and LIRR feeds, saved home/work locations, premium subscription launch, and multi-origin support. A mobile-friendly web app companion (not native) will be explored as a lighter-weight alternative to a full native mobile build, given the scope constraints of a 2-person team.
-- **Phase 3 (12 months):** Expand to other major US transit cities (Chicago CTA, DC Metro, SF BART), native mobile app development once the core product is stable, and corporate/team calendar integrations
+- [injection/SETUP.md](injection/SETUP.md)
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md)
 
-> **Note on Mobile Timeline:** Developing a full native mobile platform within the initial 2-month scope is not realistic for a 2-person team alongside coursework. Our roadmap intentionally scopes Phase 1 to a Chrome extension only. Mobile is deferred to Phase 2, where a progressive web app (PWA) approach will be evaluated first as a lower-overhead path to mobile support before committing to native iOS/Android development.
+Short version:
 
----
+1. Enable Google Calendar API, Routes API, and Places API.
+2. Configure Google OAuth for the stable extension ID.
+3. Deploy the Vercel backend with `GOOGLE_ROUTES_API_KEY`.
+4. Load the repo as an unpacked Chrome extension.
+5. Test Preview, Add to Calendar, Refresh Routes, and Remove Commute Blocks.
 
-## 12. Sources & References
+## Known Limitations
 
-- MTA Developer Tools & GTFS-RT Feeds: https://api.mta.info/
-- Google Calendar API: https://developers.google.com/calendar/api/guides/overview
-- Google Routes API Transit Routes: https://developers.google.com/maps/documentation/routes/transit-route
-- Chrome Identity API (OAuth): https://developer.chrome.com/docs/extensions/reference/api/identity
-- MTA Daily Ridership Data: https://new.mta.info/agency/new-york-city-transit/subway-bus-ridership-2023
-- Google Calendar User Statistics: https://backlinko.com/google-workspace-users
-- Chrome Extensions Developer Guide: https://developer.chrome.com/docs/extensions/
-- Progressive Web Apps Overview: https://web.dev/progressive-web-apps/
+- Google Calendar's grid UI is limited. The extension can control event title, time, location, color, and description, but it cannot render fully custom route chips inside calendar blocks.
+- Daily refresh uses Chrome alarms, so it runs when Chrome is available rather than at a guaranteed exact time.
+- MTA real-time delay integration is planned but not implemented yet.
+- OAuth test users may need to be added in Google Cloud if the app remains in Testing mode.
+
+## Future Work
+
+- MTA service-alert integration for subway delay warnings.
+- Compare multiple travel modes and recommend the best one.
+- Smarter conflict detection when there is not enough time between events.
+- Better support for work/school saved addresses.
+- Optional notifications when it is time to leave.
+
+## Team
+
+- Safwan Chowdhury
+- Liz Black

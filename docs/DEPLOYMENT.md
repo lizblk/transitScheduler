@@ -31,10 +31,11 @@ GOOGLE_ROUTES_API_KEY=your_restricted_routes_api_key
 https://transit-scheduler.vercel.app
 ```
 
-5. Update `ROUTES_PROXY_URL` in `src/constants.js`:
+5. Update the proxy URLs in `src/constants.js`:
 
 ```js
 export const ROUTES_PROXY_URL = "https://transit-scheduler.vercel.app/api/routes";
+export const PLACES_PROXY_URL = "https://transit-scheduler.vercel.app/api/places";
 ```
 
 6. Reload the unpacked extension and test Preview again.

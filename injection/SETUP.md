@@ -56,13 +56,22 @@
 
 ## Step 3: Configure the Extension
 
-1. Open `manifest.json` and replace the OAuth client ID with your actual Client ID.
+1. Confirm `manifest.json` contains the OAuth client ID for the stable extension ID above.
 
-2. Deploy the route proxy in `api/routes.js`. See `docs/DEPLOYMENT.md`.
+2. Confirm the backend proxy is deployed. See `docs/DEPLOYMENT.md`.
 
-3. Open `src/constants.js` and replace `https://YOUR_DEPLOYED_BACKEND_URL/api/routes` with your deployed proxy URL.
+3. Confirm `src/constants.js` points at the deployed proxy URLs:
 
-4. Open `manifest.json` and replace `https://YOUR_DEPLOYED_BACKEND_URL/*` with your deployed backend origin, for example `https://transit-scheduler.vercel.app/*`.
+   ```text
+   https://transit-scheduler-three.vercel.app/api/routes
+   https://transit-scheduler-three.vercel.app/api/places
+   ```
+
+4. Confirm `manifest.json` includes the deployed backend host permission:
+
+   ```text
+   https://transit-scheduler-three.vercel.app/*
+   ```
 
 ## Step 4: Reload and Test
 
@@ -111,5 +120,5 @@ nyc-transit-scheduler/
 │   └── icon128.png
 └── docs/
     ├── DEPLOYMENT.md      # Backend proxy and publishing setup
-    └── PROJECT_PLAN.md    # Architecture and MVP roadmap
+    └── PRODUCT_ARCHITECTURE.md
 ```
