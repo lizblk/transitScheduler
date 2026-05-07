@@ -19,8 +19,6 @@ const elements = {
   resultsList: document.getElementById("results-list"),
 };
 
-const PREVIEW_MAX_AGE_MS = 30 * 60 * 1000;
-
 let currentResults = null;
 let currentSettings = null;
 let addressAutocompleteTimer = null;
@@ -30,13 +28,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   const settings = await sendMessage({ action: "getSettings" });
   currentSettings = settings;
   renderSettings(settings);
-
-  const lastPreview = await sendMessage({ action: "getLastPreview" });
-  if (shouldRestorePreview(lastPreview, settings)) {
-    renderResults(lastPreview);
-  } else if (lastPreview) {
-    await sendMessage({ action: "clearLastPreview" });
-  }
 });
 
 elements.homeAddress.addEventListener("input", () => {
@@ -103,7 +94,8 @@ elements.addBtn.addEventListener("click", async () => {
 
     setStatus(
       `Added ${results.created || 0} commute block${results.created === 1 ? "" : "s"} to Calendar.`,
-      "success"
+      "success",
+      "Calendar may take a moment to show new blocks."
     );
   });
 });
@@ -141,7 +133,8 @@ elements.removeBtn.addEventListener("click", async () => {
     clearResults();
     setStatus(
       `Removed ${results.deleted || 0} commute block${results.deleted === 1 ? "" : "s"}.`,
-      "success"
+      "success",
+      "Calendar may take a moment to clear removed blocks."
     );
   });
 });
@@ -267,15 +260,6 @@ function resolveTheme(theme) {
 
 function applyTheme(theme) {
   document.body.classList.toggle("theme-dark", theme === "dark");
-}
-
-function shouldRestorePreview(preview, settings) {
-  if (!preview || preview.defaultTravelMode !== settings.travelMode || !preview.timestamp) {
-    return false;
-  }
-
-  const previewAge = Date.now() - new Date(preview.timestamp).getTime();
-  return previewAge >= 0 && previewAge <= PREVIEW_MAX_AGE_MS;
 }
 
 function renderResults(results) {
@@ -674,8 +658,17 @@ function buildStatus(results, fallback) {
   return fallback;
 }
 
-function setStatus(text, type = "") {
-  elements.status.textContent = text;
+function setStatus(text, type = "", hint = "") {
+  elements.status.textContent = "";
+  elements.status.appendChild(document.createTextNode(text));
+
+  if (hint) {
+    const hintEl = document.createElement("span");
+    hintEl.className = "status-hint";
+    hintEl.textContent = hint;
+    elements.status.appendChild(hintEl);
+  }
+
   elements.status.className = `status-text ${type}`;
 }
 

@@ -58,14 +58,6 @@ async function previewCommutes() {
     results.planned = serializeCommutes(plan.planned);
     results.skipped = serializeSkippedCommutes(plan.skipped);
 
-    await chrome.storage.local.set({
-      lastPreviewResults: results,
-      lastPreviewWindow: {
-        timeMin: timeMin.toISOString(),
-        timeMax: timeMax.toISOString(),
-      },
-    });
-
     return results;
   } catch (error) {
     results.errors.push(error.message);
@@ -120,7 +112,6 @@ async function addCommutesToCalendar() {
       timestamp: new Date().toISOString(),
     };
 
-    await chrome.storage.local.set({ lastPreviewResults: finalResults });
     return finalResults;
   } catch (error) {
     return {
@@ -162,7 +153,6 @@ async function addCurrentCommutesToCalendar(plannedCommutes = []) {
     results.deleted = writeResults.deleted;
     await Promise.all([
       chrome.storage.local.set({
-        lastPreviewResults: results,
         commutesManaged: true,
         lastAutoRefreshAt: null,
       }),
@@ -424,13 +414,6 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   if (message.action === "runAutoRefresh") {
     runAutoRefresh().then(sendResponse);
-    return true;
-  }
-
-  if (message.action === "getLastPreview") {
-    chrome.storage.local.get("lastPreviewResults", (data) => {
-      sendResponse(data.lastPreviewResults || null);
-    });
     return true;
   }
 

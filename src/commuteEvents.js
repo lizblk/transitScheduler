@@ -48,16 +48,20 @@ async function createCommuteEvent(token, calendarId, commute) {
     },
   };
 
-  return calendarFetch(token, `/calendars/${encodeURIComponent(calendarId)}/events`, {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
+  return calendarFetch(
+    token,
+    `/calendars/${encodeURIComponent(calendarId)}/events?sendUpdates=none`,
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    }
+  );
 }
 
 function deleteCalendarEvent(token, calendarId, eventId) {
   return calendarFetch(
     token,
-    `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}`,
+    `/calendars/${encodeURIComponent(calendarId)}/events/${encodeURIComponent(eventId)}?sendUpdates=none`,
     { method: "DELETE" }
   );
 }

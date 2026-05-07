@@ -337,6 +337,13 @@ select:focus {
   color: var(--warning);
 }
 
+.status-hint {
+  display: block;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
 .empty-state {
   margin-top: 14px;
   padding: 14px 12px;

@@ -94,7 +94,6 @@ Main message actions:
 - `recalculateCommuteMode`
 - `removeCommutesFromCalendar`
 - `runAutoRefresh`
-- `getLastPreview`
 - `autocompleteAddress`
 
 ## Calendar Integration
