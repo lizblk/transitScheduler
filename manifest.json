@@ -8,7 +8,8 @@
   "permissions": [
     "identity",
     "storage",
-    "alarms"
+    "alarms",
+    "sidePanel"
   ],
 
   "host_permissions": [
@@ -28,8 +29,11 @@
     "type": "module"
   },
 
+  "side_panel": {
+    "default_path": "injection/popup/popup.html"
+  },
+
   "action": {
-    "default_popup": "injection/popup/popup.html",
     "default_icon": {
       "16": "injection/icons/icon16.png",
       "48": "injection/icons/icon48.png",

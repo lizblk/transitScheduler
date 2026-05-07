@@ -6,7 +6,7 @@ NYC Transit Scheduler is a Chrome extension for Google Calendar users who need t
 
 The user experience is:
 
-1. Open the extension popup.
+1. Open the extension side panel.
 2. Set a home address, default mode, and planning window.
 3. Preview upcoming commutes.
 4. Adjust individual commute modes if needed.
@@ -17,7 +17,7 @@ The user experience is:
 
 ### Preview Commutes
 
-The popup asks the background service worker to:
+The side panel asks the background service worker to:
 
 1. Authenticate with Google Calendar.
 2. Fetch upcoming timed events from the primary calendar.
@@ -28,7 +28,7 @@ The popup asks the background service worker to:
 
 ### Add Commutes To Calendar
 
-After preview, the popup sends the current edited plan to the background worker. This matters because each row can have a different selected travel mode.
+After preview, the side panel sends the current edited plan to the background worker. This matters because each row can have a different selected travel mode.
 
 The background worker:
 
@@ -65,7 +65,7 @@ Responsibilities:
 - Support per-row travel mode changes.
 - Display friendly status messages.
 
-The popup does not call Google directly. It sends messages to `background.js`.
+The side panel does not call Google directly. It sends messages to `background.js`.
 
 ## Background Service Worker
 
@@ -77,13 +77,13 @@ background.js
 
 Responsibilities:
 
-- Receive popup messages.
+- Receive side panel messages.
 - Manage Google auth through `chrome.identity`.
 - Fetch Calendar events.
 - Coordinate route planning.
 - Create/remove Calendar commute events.
 - Run hourly refresh through `chrome.alarms`.
-- Proxy address autocomplete requests from popup to `src/placesApi.js`.
+- Proxy address autocomplete requests from the side panel to `src/placesApi.js`.
 
 Main message actions:
 
@@ -172,7 +172,7 @@ api/places.js
 src/placesApi.js
 ```
 
-The popup sends home-address input to the background worker, which calls `src/placesApi.js`, which calls:
+The side panel sends home-address input to the background worker, which calls `src/placesApi.js`, which calls:
 
 ```text
 https://transit-scheduler-three.vercel.app/api/places
@@ -233,6 +233,7 @@ Manifest permissions:
 - `identity`: Google OAuth through Chrome.
 - `storage`: User preferences and cached preview state.
 - `alarms`: Hourly route refresh.
+- `sidePanel`: Keeps the planner open beside Google Calendar.
 
 Host permissions:
 

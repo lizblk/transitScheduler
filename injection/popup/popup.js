@@ -17,6 +17,8 @@ const elements = {
   resultsList: document.getElementById("results-list"),
 };
 
+const PREVIEW_MAX_AGE_MS = 30 * 60 * 1000;
+
 let currentResults = null;
 let currentSettings = null;
 let addressAutocompleteTimer = null;
@@ -28,8 +30,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   renderSettings(settings);
 
   const lastPreview = await sendMessage({ action: "getLastPreview" });
-  if (lastPreview?.defaultTravelMode === settings.travelMode) {
+  if (shouldRestorePreview(lastPreview, settings)) {
     renderResults(lastPreview);
+  } else if (lastPreview) {
+    await sendMessage({ action: "clearLastPreview" });
   }
 });
 
@@ -258,6 +262,15 @@ function applyTheme(theme) {
   document.body.classList.toggle("theme-dark", theme === "dark");
 }
 
+function shouldRestorePreview(preview, settings) {
+  if (!preview || preview.defaultTravelMode !== settings.travelMode || !preview.timestamp) {
+    return false;
+  }
+
+  const previewAge = Date.now() - new Date(preview.timestamp).getTime();
+  return previewAge >= 0 && previewAge <= PREVIEW_MAX_AGE_MS;
+}
+
 function renderResults(results) {
   currentResults = results;
   currentResults.defaultTravelMode = currentResults.defaultTravelMode || elements.travelMode.value;
@@ -274,6 +287,8 @@ function renderResults(results) {
   for (const item of buildTimelineItems(results)) {
     if (item.kind === "planned") {
       appendPlannedResult(item.data);
+    } else if (isEditableSkippedItem(item.data)) {
+      appendEditableSkippedResult(item.data);
     } else {
       appendTimelineNotice(item);
     }
@@ -314,7 +329,7 @@ function buildTimelineItems(results) {
 }
 
 function getSortTime(item) {
-  for (const value of [item.start, item.arrivalTarget, item.departureTarget, item.earliestDeparture]) {
+  for (const value of [item.arrivalTarget, item.departureTarget, item.earliestDeparture, item.start]) {
     if (!value) continue;
     const timestamp = new Date(value).getTime();
     if (!Number.isNaN(timestamp)) return timestamp;
@@ -379,6 +394,62 @@ function appendPlannedResult(item) {
   elements.resultsList.appendChild(div);
 }
 
+function appendEditableSkippedResult(item) {
+  const div = document.createElement("div");
+  div.className = "result-item error-item";
+  div.dataset.tripId = item.tripId;
+
+  const header = document.createElement("div");
+  header.className = "result-event";
+  header.textContent = item.label;
+
+  const badge = document.createElement("span");
+  badge.className = "badge badge-issue";
+  badge.textContent = getBadgeForSkip(item.reason || "");
+
+  const topRow = document.createElement("div");
+  topRow.className = "result-top-row";
+  topRow.appendChild(header);
+  topRow.appendChild(badge);
+  div.appendChild(topRow);
+
+  const controls = document.createElement("div");
+  controls.className = "result-controls";
+
+  const select = document.createElement("select");
+  select.className = "mode-select";
+  select.setAttribute("aria-label", `Try another travel mode for ${item.label}`);
+
+  for (const option of getTravelModeOptions()) {
+    const optionEl = document.createElement("option");
+    optionEl.value = option.value;
+    optionEl.textContent = option.label;
+    optionEl.selected = option.value === item.travelMode;
+    select.appendChild(optionEl);
+  }
+
+  select.addEventListener("change", () => updateCommuteMode(item.tripId, select.value, div));
+  controls.appendChild(select);
+
+  const detail = document.createElement("div");
+  detail.className = "result-detail";
+  detail.textContent = `${getSkippedDetail(item, item.reason)} Try choosing another mode.`;
+  controls.appendChild(detail);
+
+  div.appendChild(controls);
+
+  if (item.mapsUrl) {
+    const link = document.createElement("a");
+    link.href = item.mapsUrl;
+    link.target = "_blank";
+    link.rel = "noreferrer";
+    link.textContent = "Open route";
+    div.appendChild(link);
+  }
+
+  elements.resultsList.appendChild(div);
+}
+
 function appendTimelineNotice(item) {
   const notice = item.data;
   const reason = notice.reason || String(notice);
@@ -394,7 +465,9 @@ function appendTimelineNotice(item) {
 }
 
 async function updateCommuteMode(tripId, travelMode, rowEl) {
-  const commute = currentResults?.planned?.find((item) => item.tripId === tripId);
+  const commute =
+    currentResults?.planned?.find((item) => item.tripId === tripId) ||
+    currentResults?.skipped?.find((item) => item.tripId === tripId);
   if (!commute) return;
 
   const select = rowEl.querySelector(".mode-select");
@@ -412,23 +485,48 @@ async function updateCommuteMode(tripId, travelMode, rowEl) {
       travelMode,
     });
 
+    if (result.commute) {
+      applyRecalculatedCommute(tripId, result);
+      renderResults(currentResults);
+      setStatus(result.status === "skipped" ? "" : "Commute updated.", "success");
+      return;
+    }
+
     if (result.error) {
       detail.textContent = formatFriendlyError(result.error);
       rowEl.classList.add("has-error");
       select.value = commute.travelMode;
       return;
     }
-
-    const index = currentResults.planned.findIndex((item) => item.tripId === tripId);
-    currentResults.planned[index] = result.commute;
-    renderResults(currentResults);
-    setStatus("Commute updated.", "success");
   } catch (error) {
     detail.textContent = formatFriendlyError(error.message || originalText);
     rowEl.classList.add("has-error");
   } finally {
     rowEl.classList.remove("is-loading");
     select.disabled = false;
+  }
+}
+
+function applyRecalculatedCommute(tripId, result) {
+  currentResults.planned = currentResults.planned || [];
+  currentResults.skipped = currentResults.skipped || [];
+
+  if (result.status === "skipped") {
+    currentResults.planned = currentResults.planned.filter((item) => item.tripId !== tripId);
+    upsertByTripId(currentResults.skipped, result.commute);
+    return;
+  }
+
+  currentResults.skipped = currentResults.skipped.filter((item) => item.tripId !== tripId);
+  upsertByTripId(currentResults.planned, result.commute);
+}
+
+function upsertByTripId(items, nextItem) {
+  const index = items.findIndex((item) => item.tripId === nextItem.tripId);
+  if (index >= 0) {
+    items[index] = nextItem;
+  } else {
+    items.push(nextItem);
   }
 }
 
@@ -456,6 +554,15 @@ function getSkippedDetail(item, reason) {
   parts.push(friendlyReason);
 
   return parts.join(" | ");
+}
+
+function isEditableSkippedItem(item) {
+  return Boolean(
+    item?.tripId &&
+      item.origin &&
+      item.destination &&
+      item.reason?.includes("Commute overlaps")
+  );
 }
 
 function getTravelModeOptions() {

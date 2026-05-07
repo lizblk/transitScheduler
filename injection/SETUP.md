@@ -77,7 +77,7 @@
 
 1. Go back to `chrome://extensions/`
 2. Click the **reload** button (circular arrow) on the NYC Transit Scheduler card
-3. Click the extension icon in the toolbar
+3. Click the extension icon in the toolbar to open the side panel
 4. Enter your home address. Settings save automatically.
 5. Click **Preview** to calculate commute blocks.
 6. Click **Add to Calendar** to create real commute events.
@@ -89,7 +89,7 @@
 |---------|-----|
 | "Authorization failed" | Check that Client ID in manifest.json matches Google Cloud credentials |
 | Consent prompt does not update | Remove/reload the extension or revoke the app from your Google account, then authorize again |
-| "No home address set" | Click the extension icon and enter/save your address |
+| "No home address set" | Click the extension icon and enter your address |
 | "No transit route found" | The event location may not be a real address — try with a specific street address in a test event |
 | Extension ID changed | Confirm `manifest.json` includes the `key` field from this repo, then reload the extension. |
 
@@ -109,9 +109,9 @@ nyc-transit-scheduler/
 ├── injection/
 │   ├── SETUP.md
 │   └── popup/
-│       ├── popup.html     # Extension popup UI
-│       ├── popup.css      # Popup styles
-│       └── popup.js       # Popup logic
+│       ├── popup.html     # Extension side panel UI
+│       ├── popup.css      # Side panel styles
+│       └── popup.js       # Side panel logic
 ├── api/
 │   └── routes.js          # Serverless route proxy for Google Routes API
 ├── injection/icons/

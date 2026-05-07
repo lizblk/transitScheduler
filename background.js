@@ -176,8 +176,6 @@ async function addCurrentCommutesToCalendar(plannedCommutes = []) {
 }
 
 async function recalculateCommuteMode(commute, travelMode) {
-  const settings = await getSettings();
-
   try {
     const route = await calculateRoute({
       origin: commute.origin,
@@ -195,35 +193,53 @@ async function recalculateCommuteMode(commute, travelMode) {
       return { error: "No route found" };
     }
 
-    const start = commute.departureTarget
-      ? new Date(commute.departureTarget)
-      : new Date(new Date(commute.arrivalTarget).getTime() - route.durationSeconds * 1000);
-    const end = commute.departureTarget
-      ? new Date(start.getTime() + route.durationSeconds * 1000)
-      : new Date(commute.arrivalTarget);
+    const recalculatedCommute = buildRecalculatedCommute(commute, travelMode, route);
 
-    if (commute.earliestDeparture && start < new Date(commute.earliestDeparture)) {
-      return { error: "Commute overlaps the previous event" };
+    if (
+      recalculatedCommute.earliestDeparture &&
+      new Date(recalculatedCommute.start) < new Date(recalculatedCommute.earliestDeparture)
+    ) {
+      return {
+        status: "skipped",
+        error: "Commute overlaps the previous event",
+        commute: {
+          ...recalculatedCommute,
+          reason: "Commute overlaps the previous event",
+        },
+      };
     }
 
+    const { reason: _reason, ...plannedCommute } = recalculatedCommute;
     return {
-      commute: {
-        ...commute,
-        travelMode,
-        travelModeLabel: getTravelModeLabel(travelMode),
-        route,
-        start: start.toISOString(),
-        end: end.toISOString(),
-        durationText: route.durationText,
-        distanceText: route.distanceText,
-        compactSummary: route.compactSummary,
-        summary: route.summary,
-        mapsUrl: route.mapsUrl,
-      },
+      status: "planned",
+      commute: plannedCommute,
     };
   } catch (error) {
     return { error: error.message };
   }
+}
+
+function buildRecalculatedCommute(commute, travelMode, route) {
+  const start = commute.departureTarget
+    ? new Date(commute.departureTarget)
+    : new Date(new Date(commute.arrivalTarget).getTime() - route.durationSeconds * 1000);
+  const end = commute.departureTarget
+    ? new Date(start.getTime() + route.durationSeconds * 1000)
+    : new Date(commute.arrivalTarget);
+
+  return {
+    ...commute,
+    travelMode,
+    travelModeLabel: getTravelModeLabel(travelMode),
+    route,
+    start: start.toISOString(),
+    end: end.toISOString(),
+    durationText: route.durationText,
+    distanceText: route.distanceText,
+    compactSummary: route.compactSummary,
+    summary: route.summary,
+    mapsUrl: route.mapsUrl,
+  };
 }
 
 async function removeCommutesFromCalendar() {
@@ -316,6 +332,7 @@ function serializeSkippedCommutes(commutes) {
     sourceEventId: commute.sourceEventId || null,
     destinationEventId: commute.destinationEventId || null,
     travelMode: commute.travelMode || null,
+    travelModeLabel: commute.travelMode ? getTravelModeLabel(commute.travelMode) : null,
     start: commute.start?.toISOString?.() || commute.start || null,
     end: commute.end?.toISOString?.() || commute.end || null,
     durationText: commute.route?.durationText || null,
@@ -415,6 +432,13 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
+  if (message.action === "clearLastPreview") {
+    chrome.storage.local.remove(["lastPreviewResults", "lastPreviewWindow"]).then(() => {
+      sendResponse({ ok: true });
+    });
+    return true;
+  }
+
   if (message.action === "autocompleteAddress") {
     autocompleteAddress(message.input || "")
       .then((suggestions) => sendResponse({ suggestions }))
@@ -424,6 +448,20 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   return false;
 });
+
+function configureSidePanel() {
+  if (!chrome.sidePanel?.setPanelBehavior) return;
+
+  const result = chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
+  if (result?.catch) {
+    result.catch((error) => console.warn("Could not configure side panel", error));
+  }
+}
+
+configureSidePanel();
+
+chrome.runtime.onInstalled.addListener(configureSidePanel);
+chrome.runtime.onStartup.addListener(configureSidePanel);
 
 chrome.alarms.clear("dailyCommuteRefresh");
 

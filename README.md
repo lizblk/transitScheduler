@@ -26,7 +26,7 @@ The project is focused on NYC students and commuters, but the current route engi
 4. The commute planner builds trips between consecutive events, plus optional home commutes.
 5. The extension sends route requests to the deployed backend proxy.
 6. The backend calls Google Routes API or Google Places API using an environment variable API key.
-7. The popup shows editable commute preview cards.
+7. The side panel shows editable commute preview cards.
 8. The user adds the current commute plan to Calendar.
 9. Commute events are written to a separate `Transit Scheduler` calendar and tagged with private metadata.
 
@@ -64,7 +64,7 @@ api/places.js
   Vercel serverless function that proxies new Google Places API autocomplete.
 
 injection/popup/
-  Extension popup HTML, CSS, and client-side interaction logic.
+  Side panel HTML, CSS, and client-side interaction logic.
 ```
 
 ## APIs Used
