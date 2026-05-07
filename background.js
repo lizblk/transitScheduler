@@ -424,6 +424,11 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
+  if (message.action === "refreshCalendarView") {
+    refreshActiveCalendarTab().then(sendResponse);
+    return true;
+  }
+
   if (message.action === "autocompleteAddress") {
     autocompleteAddress(message.input || "")
       .then((suggestions) => sendResponse({ suggestions }))
@@ -472,6 +477,26 @@ async function updateAllSidePanels() {
 
   const tabs = await chrome.tabs.query({});
   await Promise.all(tabs.map(updateSidePanelForTab));
+}
+
+async function refreshActiveCalendarTab() {
+  if (!chrome.tabs?.query || !chrome.tabs?.reload) {
+    return { refreshed: false };
+  }
+
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  const tab = tabs.find((candidate) => isCalendarTab(candidate.url));
+  if (!tab?.id) {
+    return { refreshed: false };
+  }
+
+  try {
+    await chrome.tabs.reload(tab.id);
+    return { refreshed: true };
+  } catch (error) {
+    console.warn("Could not refresh Google Calendar tab", error);
+    return { refreshed: false };
+  }
 }
 
 function isCalendarTab(url) {

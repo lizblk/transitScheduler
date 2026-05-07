@@ -95,7 +95,8 @@ elements.addBtn.addEventListener("click", async () => {
     setStatus(
       `Added ${results.created || 0} commute block${results.created === 1 ? "" : "s"} to Calendar.`,
       "success",
-      "Calendar may take a moment to show new blocks."
+      "Calendar may take a moment to show new blocks.",
+      { label: "Refresh view", action: refreshCalendarView }
     );
   });
 });
@@ -134,7 +135,8 @@ elements.removeBtn.addEventListener("click", async () => {
     setStatus(
       `Removed ${results.deleted || 0} commute block${results.deleted === 1 ? "" : "s"}.`,
       "success",
-      "Calendar may take a moment to clear removed blocks."
+      "Calendar may take a moment to clear removed blocks.",
+      { label: "Refresh view", action: refreshCalendarView }
     );
   });
 });
@@ -653,12 +655,28 @@ async function runAction(button, busyText, callback) {
   }
 }
 
+async function refreshCalendarView(event) {
+  const button = event.currentTarget;
+  const originalText = button.textContent;
+  button.disabled = true;
+  button.textContent = "Refreshing...";
+
+  try {
+    await sendMessage({ action: "refreshCalendarView" });
+  } catch (_error) {
+    // Keep this best-effort; add/remove already succeeded before this action appears.
+  } finally {
+    button.textContent = originalText;
+    button.disabled = false;
+  }
+}
+
 function buildStatus(results, fallback) {
   if (results.errors?.length) return formatErrorList(results.errors);
   return fallback;
 }
 
-function setStatus(text, type = "", hint = "") {
+function setStatus(text, type = "", hint = "", action = null) {
   elements.status.textContent = "";
   elements.status.appendChild(document.createTextNode(text));
 
@@ -666,6 +684,17 @@ function setStatus(text, type = "", hint = "") {
     const hintEl = document.createElement("span");
     hintEl.className = "status-hint";
     hintEl.textContent = hint;
+
+    if (action) {
+      hintEl.appendChild(document.createTextNode(" "));
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "status-action";
+      button.textContent = action.label;
+      button.addEventListener("click", action.action);
+      hintEl.appendChild(button);
+    }
+
     elements.status.appendChild(hintEl);
   }
 
