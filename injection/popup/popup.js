@@ -15,6 +15,7 @@ const elements = {
   emptyState: document.getElementById("empty-state"),
   resultsSection: document.getElementById("results-section"),
   resultsMeta: document.getElementById("results-meta"),
+  clearPreviewBtn: document.getElementById("clear-preview-btn"),
   resultsList: document.getElementById("results-list"),
 };
 
@@ -143,6 +144,11 @@ elements.removeBtn.addEventListener("click", async () => {
       "success"
     );
   });
+});
+
+elements.clearPreviewBtn.addEventListener("click", async () => {
+  await clearResults({ clearCachedPreview: true });
+  setStatus("Preview cleared.", "success");
 });
 
 function renderSettings(settings) {
@@ -532,13 +538,17 @@ function upsertByTripId(items, nextItem) {
   }
 }
 
-function clearResults() {
+async function clearResults(options = {}) {
   currentResults = null;
   elements.resultsList.innerHTML = "";
   elements.emptyState.classList.remove("hidden");
   elements.resultsSection.classList.add("hidden");
   elements.resultsMeta.textContent = "";
   elements.addBtn.disabled = true;
+
+  if (options.clearCachedPreview) {
+    await sendMessage({ action: "clearLastPreview" });
+  }
 }
 
 function getCommuteDetail(item) {
