@@ -9,6 +9,8 @@ import { calculateRoute } from "./src/routeApi.js";
 import { autocompleteAddress } from "./src/placesApi.js";
 import { getSettings, saveSettings } from "./src/settings.js";
 
+const SIDE_PANEL_PATH = "injection/popup/popup.html";
+
 function getWindow(settings) {
   const timeMin = new Date();
   const planningWindow = settings.planningWindow || DEFAULT_PLANNING_WINDOW;
@@ -458,10 +460,70 @@ function configureSidePanel() {
   }
 }
 
-configureSidePanel();
+async function updateSidePanelForTab(tab) {
+  if (!chrome.sidePanel?.setOptions || !tab?.id) return;
 
-chrome.runtime.onInstalled.addListener(configureSidePanel);
-chrome.runtime.onStartup.addListener(configureSidePanel);
+  const enabled = isCalendarTab(tab.url);
+  try {
+    await chrome.sidePanel.setOptions({
+      tabId: tab.id,
+      path: SIDE_PANEL_PATH,
+      enabled,
+    });
+  } catch (error) {
+    console.warn("Could not update side panel for tab", error);
+  }
+}
+
+async function updateActiveSidePanel() {
+  if (!chrome.tabs?.query) return;
+
+  const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+  if (tabs[0]) {
+    await updateSidePanelForTab(tabs[0]);
+  }
+}
+
+async function updateAllSidePanels() {
+  if (!chrome.tabs?.query) return;
+
+  const tabs = await chrome.tabs.query({});
+  await Promise.all(tabs.map(updateSidePanelForTab));
+}
+
+function isCalendarTab(url) {
+  if (!url) return false;
+
+  try {
+    return new URL(url).hostname === "calendar.google.com";
+  } catch (_error) {
+    return false;
+  }
+}
+
+configureSidePanel();
+updateActiveSidePanel();
+
+chrome.runtime.onInstalled.addListener(() => {
+  configureSidePanel();
+  updateAllSidePanels();
+});
+
+chrome.runtime.onStartup.addListener(() => {
+  configureSidePanel();
+  updateAllSidePanels();
+});
+
+chrome.tabs.onActivated.addListener(async ({ tabId }) => {
+  const tab = await chrome.tabs.get(tabId);
+  await updateSidePanelForTab(tab);
+});
+
+chrome.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
+  if (changeInfo.status === "loading" || changeInfo.url) {
+    updateSidePanelForTab(tab);
+  }
+});
 
 chrome.alarms.clear("dailyCommuteRefresh");
 
