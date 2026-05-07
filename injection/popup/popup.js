@@ -19,18 +19,23 @@ const elements = {
 };
 
 let currentResults = null;
+let currentSettings = null;
 let addressAutocompleteTimer = null;
 
 document.addEventListener("DOMContentLoaded", async () => {
   const settings = await sendMessage({ action: "getSettings" });
+  currentSettings = settings;
   renderSettings(settings);
 
   const lastPreview = await sendMessage({ action: "getLastPreview" });
-  if (lastPreview) renderResults(lastPreview);
+  if (lastPreview?.defaultTravelMode === settings.travelMode) {
+    renderResults(lastPreview);
+  }
 });
 
 elements.saveSettings.addEventListener("click", async () => {
-  await saveSettings();
+  const savedSettings = await saveSettings();
+  currentSettings = savedSettings;
   setStatus("Settings saved.", "success");
 });
 
@@ -43,8 +48,15 @@ elements.homeAddress.addEventListener("blur", () => {
   window.setTimeout(hideAddressSuggestions, 150);
 });
 
+elements.travelMode.addEventListener("change", () => {
+  if (currentResults) {
+    clearResults();
+    setStatus("Preview again to apply the new default mode.", "warning");
+  }
+});
+
 elements.previewBtn.addEventListener("click", async () => {
-  await saveSettings();
+  currentSettings = await saveSettings();
   await runAction(elements.previewBtn, "Previewing...", async () => {
     const results = await sendMessage({ action: "previewCommutes" });
     renderResults(results);
@@ -53,7 +65,7 @@ elements.previewBtn.addEventListener("click", async () => {
 });
 
 elements.addBtn.addEventListener("click", async () => {
-  await saveSettings();
+  currentSettings = await saveSettings();
   await runAction(elements.addBtn, "Adding...", async () => {
     const results = await sendMessage({
       action: "addCurrentCommutesToCalendar",
@@ -74,9 +86,9 @@ elements.addBtn.addEventListener("click", async () => {
 });
 
 elements.refreshBtn.addEventListener("click", async () => {
-  await saveSettings();
+  currentSettings = await saveSettings();
   await runAction(elements.refreshBtn, "Refreshing...", async () => {
-    const response = await sendMessage({ action: "runDailyRefresh" });
+    const response = await sendMessage({ action: "runAutoRefresh" });
 
     if (!response.refreshed) {
       setStatus(response.reason || "Add commute blocks once before refreshing routes.", "warning");
@@ -178,6 +190,8 @@ function hideAddressSuggestions() {
 }
 
 async function saveSettings() {
+  const defaultModeChanged =
+    currentSettings?.travelMode && currentSettings.travelMode !== elements.travelMode.value;
   const settings = {
     enabled: elements.enabled.checked,
     homeAddress: elements.homeAddress.value,
@@ -187,6 +201,12 @@ async function saveSettings() {
     useSeparateCalendar: elements.useSeparateCalendar.checked,
     autoRefresh: elements.autoRefresh.checked,
   };
+
+  if (defaultModeChanged) {
+    settings.tripModeOverrides = {};
+    clearResults();
+    setStatus("Default mode changed. Preview again to update commute modes.", "warning");
+  }
 
   return sendMessage({
     action: "saveSettings",

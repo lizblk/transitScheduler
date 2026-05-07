@@ -149,6 +149,7 @@ async function addCurrentCommutesToCalendar(plannedCommutes = []) {
     eventsConsidered: plannedCommutes.length,
     created: 0,
     deleted: 0,
+    defaultTravelMode: settings.travelMode,
     timestamp: new Date().toISOString(),
   };
 
@@ -263,7 +264,7 @@ async function removeCommutesFromCalendar() {
   }
 }
 
-async function runDailyRefresh() {
+async function runAutoRefresh() {
   const settings = await getSettings();
   const { commutesManaged } = await chrome.storage.local.get("commutesManaged");
 
@@ -311,10 +312,10 @@ function serializeCommutes(commutes) {
 
 async function saveTripModeOverrides(plannedCommutes) {
   const settings = await getSettings();
-  const tripModeOverrides = { ...settings.tripModeOverrides };
+  const tripModeOverrides = {};
 
   for (const commute of plannedCommutes) {
-    if (commute.tripId && commute.travelMode) {
+    if (commute.tripId && commute.travelMode && commute.travelMode !== settings.travelMode) {
       tripModeOverrides[commute.tripId] = commute.travelMode;
     }
   }
@@ -386,8 +387,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
     return true;
   }
 
-  if (message.action === "runDailyRefresh") {
-    runDailyRefresh().then(sendResponse);
+  if (message.action === "runAutoRefresh") {
+    runAutoRefresh().then(sendResponse);
     return true;
   }
 
@@ -408,17 +409,17 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
   return false;
 });
 
-chrome.alarms.get("dailyCommuteRefresh", (alarm) => {
+chrome.alarms.get("autoCommuteRefresh", (alarm) => {
   if (!alarm) {
-    chrome.alarms.create("dailyCommuteRefresh", {
-      periodInMinutes: 24 * 60,
+    chrome.alarms.create("autoCommuteRefresh", {
+      periodInMinutes: 60,
     });
   }
 });
 
 chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === "dailyCommuteRefresh") {
-    runDailyRefresh();
+  if (alarm.name === "autoCommuteRefresh") {
+    runAutoRefresh();
   }
 });
 

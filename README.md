@@ -15,7 +15,7 @@ The project is focused on NYC students and commuters, but the current route engi
 - Adds route-first calendar titles such as `B → 5 | 47 mins`.
 - Adds route summaries, transit steps, stop information, and a compact Google Maps link in event details.
 - Provides Google Places autocomplete for the home address field.
-- Provides daily auto-refresh and a manual **Refresh Routes** button.
+- Provides hourly auto-refresh and a manual **Refresh Routes** button.
 - Uses a Vercel backend proxy so Google Maps API keys are not shipped in the Chrome extension.
 
 ## How It Works
@@ -124,7 +124,7 @@ Short version:
 ## Known Limitations
 
 - Google Calendar's grid UI is limited. The extension can control event title, time, location, color, and description, but it cannot render fully custom route chips inside calendar blocks.
-- Daily refresh uses Chrome alarms, so it runs when Chrome is available rather than at a guaranteed exact time.
+- Hourly refresh uses Chrome alarms, so it runs when Chrome is available rather than at a guaranteed exact time.
 - MTA real-time delay integration is planned but not implemented yet.
 - OAuth test users may need to be added in Google Cloud if the app remains in Testing mode.
 

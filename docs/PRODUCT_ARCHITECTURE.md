@@ -11,7 +11,7 @@ The user experience is:
 3. Preview upcoming commutes.
 4. Adjust individual commute modes if needed.
 5. Add commute blocks to Calendar.
-6. Let daily refresh keep routes up to date.
+6. Let hourly refresh keep routes up to date.
 
 ## Main User Workflows
 
@@ -39,7 +39,7 @@ The background worker:
 
 ### Refresh Routes
 
-Manual **Refresh Routes** and daily auto-refresh use the same route-planning pipeline. Refresh only runs automatically after the user has added commute blocks at least once.
+Manual **Refresh Routes** and hourly auto-refresh use the same route-planning pipeline. Refresh only runs automatically after the user has added commute blocks at least once.
 
 ### Remove Commute Blocks
 
@@ -82,7 +82,7 @@ Responsibilities:
 - Fetch Calendar events.
 - Coordinate route planning.
 - Create/remove Calendar commute events.
-- Run daily refresh through `chrome.alarms`.
+- Run hourly refresh through `chrome.alarms`.
 - Proxy address autocomplete requests from popup to `src/placesApi.js`.
 
 Main message actions:
@@ -93,7 +93,7 @@ Main message actions:
 - `addCurrentCommutesToCalendar`
 - `recalculateCommuteMode`
 - `removeCommutesFromCalendar`
-- `runDailyRefresh`
+- `runAutoRefresh`
 - `getLastPreview`
 - `autocompleteAddress`
 
@@ -232,7 +232,7 @@ Manifest permissions:
 
 - `identity`: Google OAuth through Chrome.
 - `storage`: User preferences and cached preview state.
-- `alarms`: Daily route refresh.
+- `alarms`: Hourly route refresh.
 
 Host permissions:
 
@@ -260,7 +260,7 @@ Google Cloud OAuth must be configured for that ID.
 ## Current Limitations
 
 - Google Calendar blocks cannot show fully custom UI.
-- Daily refresh depends on Chrome alarms and Chrome availability.
+- Hourly refresh depends on Chrome alarms and Chrome availability.
 - MTA delay detection is not implemented yet.
 - The backend does not store user data, but route requests do pass through it transiently.
 
