@@ -46,11 +46,6 @@ async function previewCommutes() {
     timestamp: new Date().toISOString(),
   };
 
-  if (!settings.enabled) {
-    results.skipped.push({ label: "Extension disabled", reason: "Turn it on in settings." });
-    return results;
-  }
-
   try {
     const token = await getAuthToken(true);
     const { timeMin, timeMax } = getWindow(settings);
@@ -59,7 +54,7 @@ async function previewCommutes() {
 
     results.eventsConsidered = plan.eventsConsidered;
     results.planned = serializeCommutes(plan.planned);
-    results.skipped = plan.skipped;
+    results.skipped = serializeSkippedCommutes(plan.skipped);
 
     await chrome.storage.local.set({
       lastPreviewResults: results,
@@ -89,11 +84,6 @@ async function addCommutesToCalendar() {
     timestamp: new Date().toISOString(),
   };
 
-  if (!settings.enabled) {
-    results.skipped.push({ label: "Extension disabled", reason: "Turn it on in settings." });
-    return results;
-  }
-
   try {
     const token = await getAuthToken(true);
     const { timeMin, timeMax } = getWindow(settings);
@@ -104,7 +94,7 @@ async function addCommutesToCalendar() {
       return {
         ...results,
         eventsConsidered: plan.eventsConsidered,
-        skipped: plan.skipped,
+        skipped: serializeSkippedCommutes(plan.skipped),
       };
     }
 
@@ -122,7 +112,7 @@ async function addCommutesToCalendar() {
       ...results,
       eventsConsidered: plan.eventsConsidered,
       planned: serializeCommutes(plan.planned),
-      skipped: plan.skipped,
+      skipped: serializeSkippedCommutes(plan.skipped),
       created: writeResults.created.length,
       deleted: writeResults.deleted,
       timestamp: new Date().toISOString(),
@@ -268,10 +258,10 @@ async function runAutoRefresh() {
   const settings = await getSettings();
   const { commutesManaged } = await chrome.storage.local.get("commutesManaged");
 
-  if (!settings.enabled || !settings.autoRefresh || !commutesManaged) {
+  if (!settings.autoRefresh || !commutesManaged) {
     return {
       refreshed: false,
-      reason: "Auto refresh is disabled or no commute blocks are currently managed.",
+      reason: "Auto refresh is off or no commute blocks are currently managed.",
     };
   }
 
@@ -307,6 +297,32 @@ function serializeCommutes(commutes) {
     summary: commute.route.summary,
     route: commute.route,
     mapsUrl: commute.route.mapsUrl,
+  }));
+}
+
+function serializeSkippedCommutes(commutes) {
+  return commutes.map((commute) => ({
+    tripId: commute.tripId || null,
+    type: commute.type || null,
+    label: commute.label || "Skipped",
+    reason: commute.reason || "Skipped",
+    originName: commute.originName || null,
+    destinationName: commute.destinationName || null,
+    origin: commute.origin || null,
+    destination: commute.destination || null,
+    arrivalTarget: commute.arrivalTarget?.toISOString?.() || commute.arrivalTarget || null,
+    departureTarget: commute.departureTarget?.toISOString?.() || commute.departureTarget || null,
+    earliestDeparture: commute.earliestDeparture?.toISOString?.() || commute.earliestDeparture || null,
+    sourceEventId: commute.sourceEventId || null,
+    destinationEventId: commute.destinationEventId || null,
+    travelMode: commute.travelMode || null,
+    start: commute.start?.toISOString?.() || commute.start || null,
+    end: commute.end?.toISOString?.() || commute.end || null,
+    durationText: commute.route?.durationText || null,
+    distanceText: commute.route?.distanceText || null,
+    compactSummary: commute.route?.compactSummary || null,
+    summary: commute.route?.summary || null,
+    mapsUrl: commute.route?.mapsUrl || null,
   }));
 }
 
@@ -408,6 +424,8 @@ chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
 
   return false;
 });
+
+chrome.alarms.clear("dailyCommuteRefresh");
 
 chrome.alarms.get("autoCommuteRefresh", (alarm) => {
   if (!alarm) {

@@ -8,6 +8,7 @@ import {
 export async function getSettings() {
   const values = await chrome.storage.sync.get({
     enabled: true,
+    theme: "system",
     homeAddress: "",
     travelMode: DEFAULT_TRAVEL_MODE,
     planningWindow: DEFAULT_PLANNING_WINDOW,
@@ -19,7 +20,8 @@ export async function getSettings() {
   });
 
   return {
-    enabled: Boolean(values.enabled),
+    enabled: true,
+    theme: values.theme || "system",
     homeAddress: values.homeAddress.trim(),
     travelMode: values.travelMode,
     planningWindow: values.planningWindow || DEFAULT_PLANNING_WINDOW,
@@ -35,7 +37,8 @@ export async function getSettings() {
 export async function saveSettings(settings) {
   const current = await getSettings();
   const values = {
-    enabled: Boolean(settings.enabled),
+    enabled: true,
+    theme: settings.theme || current.theme || "system",
     homeAddress: (settings.homeAddress || "").trim(),
     travelMode: settings.travelMode || DEFAULT_TRAVEL_MODE,
     planningWindow: settings.planningWindow || DEFAULT_PLANNING_WINDOW,

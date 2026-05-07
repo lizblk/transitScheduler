@@ -78,7 +78,7 @@
 1. Go back to `chrome://extensions/`
 2. Click the **reload** button (circular arrow) on the NYC Transit Scheduler card
 3. Click the extension icon in the toolbar
-4. Enter your home address and click **Save Settings**
+4. Enter your home address. Settings save automatically.
 5. Click **Preview** to calculate commute blocks.
 6. Click **Add to Calendar** to create real commute events.
 7. The extension will ask for Google account permission on first run.

@@ -20,7 +20,7 @@ export async function buildCommutePlan(events, settings) {
       });
 
       if (!route) {
-        skipped.push({ label: trip.label, reason: "No route found" });
+        skipped.push({ ...trip, travelMode, label: trip.label, reason: "No route found" });
         continue;
       }
 
@@ -33,6 +33,11 @@ export async function buildCommutePlan(events, settings) {
 
       if (end.getTime() <= Date.now()) {
         skipped.push({
+          ...trip,
+          travelMode,
+          route,
+          start,
+          end,
           label: trip.label,
           reason: "Commute already ended",
         });
@@ -41,6 +46,11 @@ export async function buildCommutePlan(events, settings) {
 
       if (trip.earliestDeparture && start < trip.earliestDeparture) {
         skipped.push({
+          ...trip,
+          travelMode,
+          route,
+          start,
+          end,
           label: trip.label,
           reason: "Commute overlaps the previous event",
         });
@@ -56,7 +66,7 @@ export async function buildCommutePlan(events, settings) {
         end,
       });
     } catch (error) {
-      skipped.push({ label: trip.label, reason: error.message });
+      skipped.push({ ...trip, label: trip.label, reason: error.message });
     }
   }
 

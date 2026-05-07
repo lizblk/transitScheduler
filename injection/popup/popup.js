@@ -1,5 +1,5 @@
 const elements = {
-  enabled: document.getElementById("enabled"),
+  themeToggle: document.getElementById("theme-toggle"),
   homeAddress: document.getElementById("home-address"),
   addressSuggestions: document.getElementById("address-suggestions"),
   travelMode: document.getElementById("travel-mode"),
@@ -7,7 +7,6 @@ const elements = {
   includeHomeCommutes: document.getElementById("include-home-commutes"),
   useSeparateCalendar: document.getElementById("use-separate-calendar"),
   autoRefresh: document.getElementById("auto-refresh"),
-  saveSettings: document.getElementById("save-settings"),
   previewBtn: document.getElementById("preview-btn"),
   refreshBtn: document.getElementById("refresh-btn"),
   addBtn: document.getElementById("add-btn"),
@@ -21,6 +20,7 @@ const elements = {
 let currentResults = null;
 let currentSettings = null;
 let addressAutocompleteTimer = null;
+let settingsSaveTimer = null;
 
 document.addEventListener("DOMContentLoaded", async () => {
   const settings = await sendMessage({ action: "getSettings" });
@@ -33,15 +33,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 });
 
-elements.saveSettings.addEventListener("click", async () => {
-  const savedSettings = await saveSettings();
-  currentSettings = savedSettings;
-  setStatus("Settings saved.", "success");
-});
-
 elements.homeAddress.addEventListener("input", () => {
   window.clearTimeout(addressAutocompleteTimer);
   addressAutocompleteTimer = window.setTimeout(showAddressSuggestions, 250);
+  scheduleSettingsSave();
 });
 
 elements.homeAddress.addEventListener("blur", () => {
@@ -53,7 +48,29 @@ elements.travelMode.addEventListener("change", () => {
     clearResults();
     setStatus("Preview again to apply the new default mode.", "warning");
   }
+  scheduleSettingsSave({ immediate: true });
 });
+
+elements.themeToggle.addEventListener("change", async () => {
+  const theme = elements.themeToggle.checked ? "dark" : "light";
+  applyTheme(theme);
+  currentSettings = await saveSettings({ quiet: true, preserveResults: true });
+});
+
+for (const element of [
+  elements.planningWindow,
+  elements.includeHomeCommutes,
+  elements.useSeparateCalendar,
+  elements.autoRefresh,
+]) {
+  element.addEventListener("change", () => {
+    if (currentResults) {
+      clearResults();
+      setStatus("Settings updated. Preview again to refresh the plan.", "warning");
+    }
+    scheduleSettingsSave({ immediate: true });
+  });
+}
 
 elements.previewBtn.addEventListener("click", async () => {
   currentSettings = await saveSettings();
@@ -124,7 +141,9 @@ elements.removeBtn.addEventListener("click", async () => {
 });
 
 function renderSettings(settings) {
-  elements.enabled.checked = settings.enabled;
+  const theme = resolveTheme(settings.theme);
+  applyTheme(theme);
+  elements.themeToggle.checked = theme === "dark";
   elements.homeAddress.value = settings.homeAddress || "";
   elements.travelMode.value = settings.travelMode || "TRANSIT";
   elements.planningWindow.value = settings.planningWindow || "NEXT_24_HOURS";
@@ -177,6 +196,7 @@ function renderAddressSuggestions(suggestions) {
       event.preventDefault();
       elements.homeAddress.value = suggestion.text;
       hideAddressSuggestions();
+      scheduleSettingsSave({ immediate: true });
     });
 
     elements.addressSuggestions.appendChild(button);
@@ -189,11 +209,19 @@ function hideAddressSuggestions() {
   elements.addressSuggestions.classList.add("hidden");
 }
 
-async function saveSettings() {
+function scheduleSettingsSave(options = {}) {
+  window.clearTimeout(settingsSaveTimer);
+  const delay = options.immediate ? 0 : 500;
+  settingsSaveTimer = window.setTimeout(async () => {
+    currentSettings = await saveSettings({ quiet: true });
+  }, delay);
+}
+
+async function saveSettings(options = {}) {
   const defaultModeChanged =
     currentSettings?.travelMode && currentSettings.travelMode !== elements.travelMode.value;
   const settings = {
-    enabled: elements.enabled.checked,
+    theme: elements.themeToggle.checked ? "dark" : "light",
     homeAddress: elements.homeAddress.value,
     travelMode: elements.travelMode.value,
     planningWindow: elements.planningWindow.value,
@@ -204,14 +232,30 @@ async function saveSettings() {
 
   if (defaultModeChanged) {
     settings.tripModeOverrides = {};
-    clearResults();
-    setStatus("Default mode changed. Preview again to update commute modes.", "warning");
+    if (!options.preserveResults) {
+      clearResults();
+    }
+    if (!options.quiet) {
+      setStatus("Default mode changed. Preview again to update commute modes.", "warning");
+    }
   }
 
   return sendMessage({
     action: "saveSettings",
     settings,
   });
+}
+
+function resolveTheme(theme) {
+  if (theme === "dark" || theme === "light") {
+    return theme;
+  }
+
+  return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+
+function applyTheme(theme) {
+  document.body.classList.toggle("theme-dark", theme === "dark");
 }
 
 function renderResults(results) {
@@ -227,18 +271,56 @@ function renderResults(results) {
     return;
   }
 
+  for (const item of buildTimelineItems(results)) {
+    if (item.kind === "planned") {
+      appendPlannedResult(item.data);
+    } else {
+      appendTimelineNotice(item);
+    }
+  }
+}
+
+function buildTimelineItems(results) {
+  const items = [];
+
   for (const item of results.planned || []) {
-    appendPlannedResult(item);
+    items.push({
+      kind: "planned",
+      data: item,
+      sortTime: getSortTime(item) || Number.MAX_SAFE_INTEGER,
+      order: items.length,
+    });
   }
 
   for (const item of results.skipped || []) {
-    const reason = item.reason || String(item);
-    appendResult("skipped", item.label || "Skipped", formatFriendlyError(reason), "", getBadgeForSkip(reason));
+    items.push({
+      kind: "skipped",
+      data: item,
+      sortTime: getSortTime(item) || Number.MAX_SAFE_INTEGER,
+      order: items.length,
+    });
   }
 
   for (const item of results.errors || []) {
-    appendResult("error-item", "Needs attention", formatFriendlyError(item), "", "Issue");
+    items.push({
+      kind: "error",
+      data: item,
+      sortTime: Number.MAX_SAFE_INTEGER,
+      order: items.length,
+    });
   }
+
+  return items.sort((a, b) => a.sortTime - b.sortTime || a.order - b.order);
+}
+
+function getSortTime(item) {
+  for (const value of [item.start, item.arrivalTarget, item.departureTarget, item.earliestDeparture]) {
+    if (!value) continue;
+    const timestamp = new Date(value).getTime();
+    if (!Number.isNaN(timestamp)) return timestamp;
+  }
+
+  return null;
 }
 
 function appendPlannedResult(item) {
@@ -297,6 +379,20 @@ function appendPlannedResult(item) {
   elements.resultsList.appendChild(div);
 }
 
+function appendTimelineNotice(item) {
+  const notice = item.data;
+  const reason = notice.reason || String(notice);
+  const badge = item.kind === "error" ? "Issue" : getBadgeForSkip(reason);
+  const className = badge === "Overlap" || badge === "Issue" ? "error-item" : "skipped";
+  appendResult(
+    className,
+    notice.label || (item.kind === "error" ? "Needs attention" : "Skipped"),
+    getSkippedDetail(notice, reason),
+    notice.mapsUrl || "",
+    badge
+  );
+}
+
 async function updateCommuteMode(tripId, travelMode, rowEl) {
   const commute = currentResults?.planned?.find((item) => item.tripId === tripId);
   if (!commute) return;
@@ -346,6 +442,20 @@ function clearResults() {
 
 function getCommuteDetail(item) {
   return `${formatTime(item.start)}-${formatTime(item.end)} | ${item.compactSummary || item.summary} | ${item.durationText}`;
+}
+
+function getSkippedDetail(item, reason) {
+  const parts = [];
+  const friendlyReason = formatFriendlyError(reason);
+  const timeRange = item.start && item.end ? `${formatTime(item.start)}-${formatTime(item.end)}` : "";
+  const routeSummary = item.compactSummary || item.summary;
+
+  if (timeRange) parts.push(timeRange);
+  if (routeSummary) parts.push(routeSummary);
+  if (item.durationText) parts.push(item.durationText);
+  parts.push(friendlyReason);
+
+  return parts.join(" | ");
 }
 
 function getTravelModeOptions() {

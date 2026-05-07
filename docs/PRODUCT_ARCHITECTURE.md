@@ -58,7 +58,7 @@ injection/popup/popup.js
 Responsibilities:
 
 - Render settings.
-- Save settings.
+- Autosave settings as controls change.
 - Show address autocomplete suggestions.
 - Trigger preview/add/remove/refresh actions.
 - Render commute preview cards.
@@ -217,7 +217,7 @@ src/settings.js
 
 Stored settings include:
 
-- Extension enabled/disabled
+- Popup theme
 - Home address
 - Default travel mode
 - Planning window
