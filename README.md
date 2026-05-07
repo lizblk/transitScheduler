@@ -1,6 +1,6 @@
 # NYC Transit Scheduler
 
-NYC Transit Scheduler is a Chrome extension that turns Google Calendar locations into route-aware commute blocks. It reads upcoming timed events from the user's primary Google Calendar, calculates routes between events, and creates commute events in a dedicated `Transit Scheduler` calendar.
+NYC Transit Scheduler is a Chrome extension that creates route-aware commute blocks for Google Calendar. It reads upcoming timed events from the user's primary Google Calendar, calculates routes between events, and creates commute events in a dedicated `Transit Scheduler` calendar.
 
 The project is focused on NYC students and commuters, but the current route engine uses Google Routes data and can work outside NYC as long as event locations are valid.
 
@@ -130,6 +130,7 @@ Short version:
 
 ## Future Work
 
+- Expand beyond NYC to support other major cities. Google Maps and Routes APIs make this technically doable, but the architecture would need city-aware defaults, broader testing, and possibly local transit integrations for places where Google route data is not enough. For this project, we intentionally focused on NYC to keep the scope realistic.
 - MTA service-alert integration for subway delay warnings.
 - Compare multiple travel modes and recommend the best one.
 - Smarter conflict detection when there is not enough time between events.

@@ -2,7 +2,7 @@
 
 ## Product Summary
 
-NYC Transit Scheduler is a Chrome extension for Google Calendar users who need travel time built into their schedule. It creates route-aware commute blocks between calendar events with locations.
+NYC Transit Scheduler is a Chrome extension that creates route-aware commute blocks for Google Calendar users who need travel time built into their schedule.
 
 The user experience is:
 
@@ -267,8 +267,9 @@ Google Cloud OAuth must be configured for that ID.
 
 ## Recommended Next Features
 
-1. MTA service alerts for subway delay warnings.
-2. Multi-mode comparison and automatic recommendation.
-3. Risk warnings when users may be late.
-4. More polished onboarding for first-time users.
-5. Optional departure notifications.
+1. Expand beyond NYC to support other major cities with city-aware defaults and broader route testing.
+2. MTA service alerts for subway delay warnings.
+3. Multi-mode comparison and automatic recommendation.
+4. Risk warnings when users may be late.
+5. More polished onboarding for first-time users.
+6. Optional departure notifications.
