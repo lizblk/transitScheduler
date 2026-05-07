@@ -12,6 +12,7 @@ const elements = {
   addBtn: document.getElementById("add-btn"),
   removeBtn: document.getElementById("remove-btn"),
   status: document.getElementById("status"),
+  emptyState: document.getElementById("empty-state"),
   resultsSection: document.getElementById("results-section"),
   resultsMeta: document.getElementById("results-meta"),
   resultsList: document.getElementById("results-list"),
@@ -275,6 +276,7 @@ function renderResults(results) {
   currentResults = results;
   currentResults.defaultTravelMode = currentResults.defaultTravelMode || elements.travelMode.value;
   elements.resultsList.innerHTML = "";
+  elements.emptyState.classList.add("hidden");
   elements.resultsSection.classList.remove("hidden");
   elements.resultsMeta.textContent = `${results.eventsConsidered || 0} events checked`;
   elements.addBtn.disabled = !results.planned?.length || Boolean(results.errors?.length);
@@ -377,7 +379,7 @@ function appendPlannedResult(item) {
 
   const detail = document.createElement("div");
   detail.className = "result-detail";
-  detail.textContent = getCommuteDetail(item);
+  appendCommuteDetail(detail, item);
   controls.appendChild(detail);
 
   div.appendChild(controls);
@@ -433,7 +435,7 @@ function appendEditableSkippedResult(item) {
 
   const detail = document.createElement("div");
   detail.className = "result-detail";
-  detail.textContent = `${getSkippedDetail(item, item.reason)} Try choosing another mode.`;
+  appendCommuteDetail(detail, item, item.reason);
   controls.appendChild(detail);
 
   div.appendChild(controls);
@@ -533,6 +535,7 @@ function upsertByTripId(items, nextItem) {
 function clearResults() {
   currentResults = null;
   elements.resultsList.innerHTML = "";
+  elements.emptyState.classList.remove("hidden");
   elements.resultsSection.classList.add("hidden");
   elements.resultsMeta.textContent = "";
   elements.addBtn.disabled = true;
@@ -540,6 +543,32 @@ function clearResults() {
 
 function getCommuteDetail(item) {
   return `${formatTime(item.start)}-${formatTime(item.end)} | ${item.compactSummary || item.summary} | ${item.durationText}`;
+}
+
+function appendCommuteDetail(container, item, reason = "") {
+  const parts = [
+    { className: "detail-time", text: `${formatTime(item.start)}-${formatTime(item.end)}` },
+    { className: "detail-route", text: item.compactSummary || item.summary },
+    { className: "detail-duration", text: item.durationText },
+  ];
+
+  if (reason) {
+    parts.push({ className: "detail-warning", text: formatFriendlyError(reason) });
+  }
+
+  parts.filter((part) => part.text).forEach((part, index) => {
+    if (index > 0) {
+      const separator = document.createElement("span");
+      separator.className = "detail-separator";
+      separator.textContent = "|";
+      container.appendChild(separator);
+    }
+
+    const span = document.createElement("span");
+    span.className = part.className;
+    span.textContent = part.text;
+    container.appendChild(span);
+  });
 }
 
 function getSkippedDetail(item, reason) {

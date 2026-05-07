@@ -5,23 +5,23 @@
 }
 
 body {
-  --bg: #ffffff;
-  --panel: #f6f8fa;
+  --bg: #f8fafc;
+  --panel: #f2f5f8;
   --panel-strong: #ffffff;
   --text: #1f2328;
-  --heading: #0d1117;
+  --heading: #111827;
   --muted: #656d76;
   --label: #24292f;
-  --border: #d8dee4;
-  --control-border: #d0d7de;
+  --border: #d7dee7;
+  --control-border: #ccd5df;
   --control-bg: #ffffff;
-  --control-focus: #0969da;
-  --secondary-bg: #e8ecf0;
-  --primary: #0969da;
+  --control-focus: #1976d2;
+  --secondary-bg: #e7edf4;
+  --primary: #1976d2;
   --success: #1a7f37;
   --danger: #cf222e;
   --warning: #9a6700;
-  --suggestion-hover: #f6f8fa;
+  --suggestion-hover: #eef4fa;
   --shadow: rgba(31, 35, 40, 0.16);
   --badge-ready-bg: #dafbe1;
   --badge-issue-bg: #ffebe9;
@@ -37,23 +37,23 @@ body {
 }
 
 body.theme-dark {
-  --bg: #0d1117;
-  --panel: #161b22;
-  --panel-strong: #21262d;
-  --text: #e6edf3;
-  --heading: #f0f6fc;
-  --muted: #8b949e;
-  --label: #c9d1d9;
-  --border: #30363d;
-  --control-border: #3d444d;
-  --control-bg: #0d1117;
-  --control-focus: #58a6ff;
-  --secondary-bg: #30363d;
-  --primary: #2f81f7;
-  --success: #238636;
+  --bg: #0f141b;
+  --panel: #171e27;
+  --panel-strong: #222b36;
+  --text: #e8eef5;
+  --heading: #f5f8fc;
+  --muted: #97a4b3;
+  --label: #d5dde7;
+  --border: #354150;
+  --control-border: #465463;
+  --control-bg: #111821;
+  --control-focus: #64a8ff;
+  --secondary-bg: #303a46;
+  --primary: #3b82f6;
+  --success: #2ea043;
   --danger: #ff7b72;
   --warning: #d29922;
-  --suggestion-hover: #30363d;
+  --suggestion-hover: #2b3541;
   --shadow: rgba(1, 4, 9, 0.45);
   --badge-ready-bg: rgba(46, 160, 67, 0.18);
   --badge-issue-bg: rgba(248, 81, 73, 0.16);
@@ -268,9 +268,11 @@ select:focus {
 }
 
 .btn-danger {
-  background: var(--panel);
+  min-height: 32px;
+  background: transparent;
   border: 1px solid var(--control-border);
   color: var(--danger);
+  font-size: 12px;
 }
 
 .switch {
@@ -333,6 +335,33 @@ select:focus {
 
 .status-text.warning {
   color: var(--warning);
+}
+
+.empty-state {
+  margin-top: 14px;
+  padding: 14px 12px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
+.empty-state h2 {
+  color: var(--label);
+  font-size: 13px;
+}
+
+.empty-state p {
+  margin-top: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.empty-state span {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 11px;
 }
 
 .results-section {
@@ -401,8 +430,36 @@ select:focus {
 }
 
 .result-detail {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 6px;
+  align-items: baseline;
   margin-top: 3px;
   color: var(--muted);
+}
+
+.detail-time {
+  color: var(--label);
+  font-weight: 700;
+}
+
+.detail-route {
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.detail-duration {
+  color: var(--heading);
+  font-weight: 750;
+}
+
+.detail-warning {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.detail-separator {
+  color: var(--border);
 }
 
 .result-controls {
@@ -452,9 +509,10 @@ select:focus {
 
 .result-item a {
   display: inline-block;
-  margin-top: 6px;
+  margin-top: 4px;
   color: var(--control-focus);
-  font-weight: 600;
+  font-size: 12px;
+  font-weight: 650;
   text-decoration: none;
 }
 
