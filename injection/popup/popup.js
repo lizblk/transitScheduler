@@ -118,7 +118,12 @@ elements.refreshBtn.addEventListener("click", async () => {
       return;
     }
 
-    setStatus("Routes refreshed.", "success");
+    setStatus(
+      "Routes refreshed.",
+      "success",
+      "Calendar may take a moment to show updates.",
+      { label: "Refresh view", action: refreshCalendarView }
+    );
   });
 });
 
