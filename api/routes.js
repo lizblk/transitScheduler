@@ -3,6 +3,7 @@ const GOOGLE_ROUTES_API_URL = "https://routes.googleapis.com/directions/v2:compu
 const FIELD_MASK = [
   "routes.duration",
   "routes.distanceMeters",
+  "routes.legs.steps.staticDuration",
   "routes.legs.steps.localizedValues",
   "routes.legs.steps.navigationInstruction",
   "routes.legs.steps.transitDetails",

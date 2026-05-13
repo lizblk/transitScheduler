@@ -54,11 +54,19 @@ export async function calculateRoute({
   const route = data.routes?.[0];
   if (!route) return null;
 
-  const durationSeconds = parseDurationSeconds(route.duration);
   const transitSteps = getTransitSteps(route);
   const navigationSteps = getNavigationSteps(route);
   const compactSummary = getCompactSummary(transitSteps, travelMode);
   const summary = summarizeRoute(transitSteps, navigationSteps, travelMode);
+  const { walkToTransitSeconds, walkFromTransitSeconds, stepTotalSeconds } =
+    getStepBreakdown(route);
+
+  // routes.duration sometimes omits walking legs for transit routes.
+  // Using the step-level sum ensures the commute block start is pushed
+  // early enough that the overlap check catches impossible departures.
+  const routeDurationSeconds = parseDurationSeconds(route.duration);
+  const durationSeconds =
+    stepTotalSeconds > routeDurationSeconds ? stepTotalSeconds : routeDurationSeconds;
 
   return {
     durationSeconds,
@@ -68,6 +76,8 @@ export async function calculateRoute({
     summary,
     transitSteps,
     navigationSteps,
+    walkToTransitSeconds,
+    walkFromTransitSeconds,
     mapsUrl: buildGoogleMapsUrl(origin, destination, travelMode),
   };
 }
@@ -75,6 +85,32 @@ export async function calculateRoute({
 function parseDurationSeconds(duration) {
   if (!duration) return 0;
   return Number(duration.replace("s", "")) || 0;
+}
+
+function getStepBreakdown(route) {
+  const allSteps = route.legs?.flatMap((leg) => leg.steps || []) || [];
+
+  const stepTotalSeconds = allSteps.reduce(
+    (sum, s) => sum + parseDurationSeconds(s.staticDuration),
+    0
+  );
+
+  const firstTransitIdx = allSteps.findIndex((s) => s.travelMode === "TRANSIT");
+  const lastTransitIdx = allSteps.findLastIndex((s) => s.travelMode === "TRANSIT");
+
+  if (firstTransitIdx === -1) {
+    return { walkToTransitSeconds: 0, walkFromTransitSeconds: 0, stepTotalSeconds };
+  }
+
+  const walkToTransitSeconds = allSteps
+    .slice(0, firstTransitIdx)
+    .reduce((sum, s) => sum + parseDurationSeconds(s.staticDuration), 0);
+
+  const walkFromTransitSeconds = allSteps
+    .slice(lastTransitIdx + 1)
+    .reduce((sum, s) => sum + parseDurationSeconds(s.staticDuration), 0);
+
+  return { walkToTransitSeconds, walkFromTransitSeconds, stepTotalSeconds };
 }
 
 function getTransitSteps(route) {
