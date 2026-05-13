@@ -104,18 +104,30 @@ export function isExtensionCommuteEvent(event) {
 }
 
 export function getEventStart(event) {
-  return event.start?.dateTime ? new Date(event.start.dateTime) : null;
+  if (event.start?.dateTime) return new Date(event.start.dateTime);
+  if (event.start?.date) {
+    const [y, m, d] = event.start.date.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  }
+  return null;
 }
 
 export function getEventEnd(event) {
-  return event.end?.dateTime ? new Date(event.end.dateTime) : null;
+  if (event.end?.dateTime) return new Date(event.end.dateTime);
+  if (event.start?.date) {
+    // For all-day events use start-of-day so earliestDeparture doesn't
+    // block commutes from an all-day event to a same-day timed event.
+    const [y, m, d] = event.start.date.split("-").map(Number);
+    return new Date(y, m - 1, d);
+  }
+  return null;
 }
 
 export function getRoutableEvents(events) {
   return events
     .filter((event) => !isExtensionCommuteEvent(event))
     .filter((event) => event.location?.trim())
-    .filter((event) => event.start?.dateTime && event.end?.dateTime)
+    .filter((event) => getEventStart(event) !== null)
     .sort((a, b) => getEventStart(a).getTime() - getEventStart(b).getTime());
 }
 
