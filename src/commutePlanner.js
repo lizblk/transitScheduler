@@ -80,60 +80,80 @@ export async function buildCommutePlan(events, settings) {
 function buildTripCandidates(events, settings) {
   const trips = [];
   const bufferMs = settings.bufferMinutes * 60 * 1000;
+  const dayGroups = groupEventsByDay(events);
 
-  if (settings.includeHomeCommutes && settings.homeAddress && events.length > 0) {
-    const first = events[0];
-    trips.push({
-      tripId: `home::${first.id}`,
-      type: "home-to-event",
-      label: `Home → ${eventName(first)}`,
-      originName: "Home",
-      destinationName: eventName(first),
-      origin: settings.homeAddress,
-      destination: first.location,
-      arrivalTarget: new Date(getEventStart(first).getTime() - bufferMs),
-      sourceEventId: "home",
-      destinationEventId: first.id,
-    });
-  }
+  for (const dayEvents of dayGroups) {
+    const first = dayEvents[0];
+    const last = dayEvents[dayEvents.length - 1];
 
-  for (let index = 0; index < events.length - 1; index += 1) {
-    const from = events[index];
-    const to = events[index + 1];
+    if (settings.includeHomeCommutes && settings.homeAddress) {
+      trips.push({
+        tripId: `home::${first.id}`,
+        type: "home-to-event",
+        label: `Home → ${eventName(first)}`,
+        originName: "Home",
+        destinationName: eventName(first),
+        origin: settings.homeAddress,
+        destination: first.location,
+        arrivalTarget: new Date(getEventStart(first).getTime() - bufferMs),
+        sourceEventId: "home",
+        destinationEventId: first.id,
+      });
+    }
 
-    trips.push({
-      tripId: `${from.id}::${to.id}`,
-      type: "event-to-event",
-      label: `${eventName(from)} → ${eventName(to)}`,
-      originName: eventName(from),
-      destinationName: eventName(to),
-      origin: from.location,
-      destination: to.location,
-      arrivalTarget: new Date(getEventStart(to).getTime() - bufferMs),
-      earliestDeparture: getEventEnd(from),
-      sourceEventId: from.id,
-      destinationEventId: to.id,
-    });
-  }
+    for (let index = 0; index < dayEvents.length - 1; index += 1) {
+      const from = dayEvents[index];
+      const to = dayEvents[index + 1];
 
-  if (settings.includeHomeCommutes && settings.homeAddress && events.length > 0) {
-    const last = events[events.length - 1];
-    trips.push({
-      tripId: `${last.id}::home`,
-      type: "event-to-home",
-      label: `${eventName(last)} → Home`,
-      originName: eventName(last),
-      destinationName: "Home",
-      origin: last.location,
-      destination: settings.homeAddress,
-      departureTarget: new Date(getEventEnd(last).getTime() + bufferMs),
-      earliestDeparture: getEventEnd(last),
-      sourceEventId: last.id,
-      destinationEventId: "home",
-    });
+      trips.push({
+        tripId: `${from.id}::${to.id}`,
+        type: "event-to-event",
+        label: `${eventName(from)} → ${eventName(to)}`,
+        originName: eventName(from),
+        destinationName: eventName(to),
+        origin: from.location,
+        destination: to.location,
+        arrivalTarget: new Date(getEventStart(to).getTime() - bufferMs),
+        earliestDeparture: getEventEnd(from),
+        sourceEventId: from.id,
+        destinationEventId: to.id,
+      });
+    }
+
+    if (settings.includeHomeCommutes && settings.homeAddress) {
+      trips.push({
+        tripId: `${last.id}::home`,
+        type: "event-to-home",
+        label: `${eventName(last)} → Home`,
+        originName: eventName(last),
+        destinationName: "Home",
+        origin: last.location,
+        destination: settings.homeAddress,
+        departureTarget: new Date(getEventEnd(last).getTime() + bufferMs),
+        earliestDeparture: getEventEnd(last),
+        sourceEventId: last.id,
+        destinationEventId: "home",
+      });
+    }
   }
 
   return trips;
+}
+
+function groupEventsByDay(events) {
+  const dayMap = new Map();
+
+  for (const event of events) {
+    const start = getEventStart(event);
+    const dayKey = `${start.getFullYear()}-${start.getMonth()}-${start.getDate()}`;
+
+    if (!dayMap.has(dayKey)) {
+      dayMap.set(dayKey, []);
+    }
+    dayMap.get(dayKey).push(event);
+  }
+
+  return Array.from(dayMap.values());
 }
 
 function eventName(event) {
