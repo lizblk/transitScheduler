@@ -50,6 +50,29 @@ export async function calendarFetch(token, path, options = {}) {
 }
 
 export async function fetchTimedEvents(token, timeMin, timeMax) {
+  const calendarList = await calendarFetch(token, "/users/me/calendarList?maxResults=250");
+  const calendars = (calendarList.items || []).filter(
+    (cal) => cal.selected !== false && cal.summary !== COMMUTE_CALENDAR_SUMMARY
+  );
+
+  const perCalendar = await Promise.all(
+    calendars.map((cal) => fetchEventsFromCalendar(token, cal.id, timeMin, timeMax))
+  );
+
+  const seen = new Set();
+  const merged = [];
+  for (const events of perCalendar) {
+    for (const event of events) {
+      if (!seen.has(event.id)) {
+        seen.add(event.id);
+        merged.push(event);
+      }
+    }
+  }
+  return merged;
+}
+
+async function fetchEventsFromCalendar(token, calendarId, timeMin, timeMax) {
   const params = new URLSearchParams({
     timeMin: timeMin.toISOString(),
     timeMax: timeMax.toISOString(),
@@ -58,8 +81,15 @@ export async function fetchTimedEvents(token, timeMin, timeMax) {
     maxResults: String(MAX_EVENTS),
   });
 
-  const data = await calendarFetch(token, `/calendars/primary/events?${params}`);
-  return data.items || [];
+  try {
+    const data = await calendarFetch(
+      token,
+      `/calendars/${encodeURIComponent(calendarId)}/events?${params}`
+    );
+    return data.items || [];
+  } catch {
+    return [];
+  }
 }
 
 export async function getCommuteCalendarId(token, settings) {
