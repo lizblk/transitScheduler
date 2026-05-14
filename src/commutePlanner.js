@@ -82,12 +82,15 @@ function buildTripCandidates(events, settings) {
   const bufferMs = settings.bufferMinutes * 60 * 1000;
   const dayGroups = groupEventsByDay(events);
 
-  for (const dayEvents of dayGroups) {
+  for (let dayIndex = 0; dayIndex < dayGroups.length; dayIndex += 1) {
+    const dayEvents = dayGroups[dayIndex];
     const first = dayEvents[0];
     const last = dayEvents[dayEvents.length - 1];
+    const prevDayLast =
+      dayIndex > 0 ? dayGroups[dayIndex - 1][dayGroups[dayIndex - 1].length - 1] : null;
 
     if (settings.includeHomeCommutes && settings.homeAddress) {
-      trips.push({
+      const homeToFirst = {
         tripId: `home::${first.id}`,
         type: "home-to-event",
         label: `Home → ${eventName(first)}`,
@@ -98,7 +101,17 @@ function buildTripCandidates(events, settings) {
         arrivalTarget: new Date(getEventStart(first).getTime() - bufferMs),
         sourceEventId: "home",
         destinationEventId: first.id,
-      });
+      };
+
+      // If the previous calendar day had events, you can't have left home
+      // before that day's last event ended. Setting earliestDeparture lets
+      // the existing overlap check catch impossible early-morning departures
+      // (e.g. Tuesday first event at 12:15 AM when Monday last ended 11:50 PM).
+      if (prevDayLast) {
+        homeToFirst.earliestDeparture = getEventEnd(prevDayLast);
+      }
+
+      trips.push(homeToFirst);
     }
 
     for (let index = 0; index < dayEvents.length - 1; index += 1) {
