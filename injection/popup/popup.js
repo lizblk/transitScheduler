@@ -81,9 +81,17 @@ elements.previewBtn.addEventListener("click", async () => {
 elements.addBtn.addEventListener("click", async () => {
   currentSettings = await saveSettings();
   await runAction(elements.addBtn, "Adding...", async () => {
+    const checkedIds = new Set(
+      Array.from(elements.resultsList.querySelectorAll(".commute-select:checked"))
+        .map((cb) => cb.closest("[data-trip-id]")?.dataset.tripId)
+        .filter(Boolean)
+    );
+    const selectedPlanned = (currentResults?.planned || []).filter((item) =>
+      checkedIds.has(item.tripId)
+    );
     const results = await sendMessage({
       action: "addCurrentCommutesToCalendar",
-      planned: currentResults?.planned || [],
+      planned: selectedPlanned,
     });
     renderResults(results);
 
@@ -277,6 +285,7 @@ function renderResults(results) {
   elements.resultsSection.classList.remove("hidden");
   elements.resultsMeta.textContent = `${results.eventsConsidered || 0} events checked`;
   elements.addBtn.disabled = !results.planned?.length || Boolean(results.errors?.length);
+  // checkboxes default to checked so initial state matches planned?.length check above
 
   if (!results.planned?.length && !results.skipped?.length && !results.errors?.length) {
     appendResult("empty", "No commute blocks found", "Add locations to upcoming events and preview again.", "", "Empty");
@@ -342,6 +351,13 @@ function appendPlannedResult(item) {
   div.className = "result-item planned";
   div.dataset.tripId = item.tripId;
 
+  const checkbox = document.createElement("input");
+  checkbox.type = "checkbox";
+  checkbox.className = "commute-select";
+  checkbox.checked = true;
+  checkbox.setAttribute("aria-label", `Include ${item.label}`);
+  checkbox.addEventListener("change", updateAddButtonState);
+
   const header = document.createElement("div");
   header.className = "result-event";
   header.textContent = item.label;
@@ -350,9 +366,14 @@ function appendPlannedResult(item) {
   badge.className = "badge badge-ready";
   badge.textContent = currentResults?.created ? "Added" : "Ready";
 
+  const leftGroup = document.createElement("div");
+  leftGroup.className = "result-top-left";
+  leftGroup.appendChild(checkbox);
+  leftGroup.appendChild(header);
+
   const topRow = document.createElement("div");
   topRow.className = "result-top-row";
-  topRow.appendChild(header);
+  topRow.appendChild(leftGroup);
   topRow.appendChild(badge);
   div.appendChild(topRow);
 
@@ -584,6 +605,12 @@ function getSkippedDetail(item, reason) {
   parts.push(friendlyReason);
 
   return parts.join(" | ");
+}
+
+function updateAddButtonState() {
+  const anyChecked =
+    elements.resultsList.querySelectorAll(".commute-select:checked").length > 0;
+  elements.addBtn.disabled = !anyChecked || Boolean(currentResults?.errors?.length);
 }
 
 function isEditableSkippedItem(item) {

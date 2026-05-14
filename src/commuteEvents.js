@@ -112,10 +112,21 @@ function buildDescription(commute) {
 
 function buildStepLines(commute) {
   if (commute.route.transitSteps?.length) {
-    return [
-      "<b>Transit steps</b>",
-      ...commute.route.transitSteps.map(formatTransitStep),
-    ];
+    const lines = ["<b>Transit steps</b>"];
+
+    if (commute.route.walkToTransitSeconds > 0) {
+      lines.push(`Walk to station: ${formatDuration(commute.route.walkToTransitSeconds)}`);
+    }
+
+    for (const step of commute.route.transitSteps) {
+      lines.push(formatTransitStep(step));
+    }
+
+    if (commute.route.walkFromTransitSeconds > 0) {
+      lines.push(`Walk to destination: ${formatDuration(commute.route.walkFromTransitSeconds)}`);
+    }
+
+    return lines;
   }
 
   if (commute.route.navigationSteps?.length) {
@@ -138,6 +149,14 @@ function formatTransitStep(step) {
   ].filter(Boolean);
 
   return parts.join(" | ");
+}
+
+function formatDuration(totalSeconds) {
+  const minutes = Math.max(1, Math.round(totalSeconds / 60));
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  return remainder ? `${hours} hr ${remainder} min` : `${hours} hr`;
 }
 
 function formatTime(date) {

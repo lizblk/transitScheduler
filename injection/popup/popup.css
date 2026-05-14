@@ -464,6 +464,22 @@ select:focus {
   gap: 8px;
 }
 
+.result-top-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.commute-select {
+  flex: 0 0 auto;
+  cursor: pointer;
+  accent-color: var(--primary);
+  width: 15px;
+  height: 15px;
+}
+
 .result-event {
   font-weight: 650;
   min-width: 0;
